@@ -21,6 +21,7 @@ void print_dataset(dataset *ds);
 double mean(dataset *ds);
 double var(dataset *ds);
 double stddev(dataset *ds);
+double binmedian(dataset *ds);
 double median(dataset *ds);
 double timeit(double (*datafunc)(dataset *), dataset *ds);
 
