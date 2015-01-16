@@ -153,7 +153,7 @@ double sd(dataset *ds)
 
 double median(dataset *ds)
 {
-    // Compute the median by using selection.
+    // Compute the median using selection.
     double high, low;
 
     high = select(ds->data, ds->n, ds->n / 2);
@@ -164,6 +164,55 @@ double median(dataset *ds)
     } else {
         return high;
     }
+}
+
+double first_quartile(dataset *ds)
+{
+    // Compute the first quartile using selection.
+    double high, low;
+
+    high = select(ds->data, ds->n, ds->n / 4 + 1);
+    low = select(ds->data, ds->n, ds->n / 4);
+    if (ds->n % 2 == 0) {
+        return low + 0.5 * (high - low);
+    } else if (ds->n % 4 == 1) {
+        return low + 0.75 * (high - low);
+    } else {
+        return low + 0.25 * (high - low);
+    }
+}
+
+double third_quartile(dataset *ds)
+{
+    // Compute the third quartile using selection.
+    double high, low;
+
+    high = select(ds->data, ds->n, 3 * ds->n / 4);
+    low = select(ds->data, ds->n, 3 * ds->n / 4 - 1);
+    if (ds->n % 2 == 0) {
+        return low + 0.5 * (high - low);
+    } else if (ds->n % 4 == 1) {
+        return low + 0.25 * (high - low);
+    } else {
+        return low + 0.75 * (high - low);
+    }
+}
+
+double interquartile_range(dataset *ds)
+{
+    // The interquartile range is the distance between the first and the third
+    // quartiles.
+    return third_quartile(ds) - first_quartile(ds);
+}
+
+double min(dataset *ds)
+{
+    return select(ds->data, ds->n, 0);
+}
+
+double max(dataset *ds)
+{
+    return select(ds->data, ds->n, ds->n - 1);
 }
 
 double timeit(double (*datafunc)(dataset *), dataset *ds, int n) {

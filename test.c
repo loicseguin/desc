@@ -16,24 +16,39 @@ void check_answer(double computed, double answer, double tol)
 void test_describe(char *testname, dataset *ds, double *answer)
 {
     fprintf(stderr, "%s: median: ", testname);
-    check_answer(median(ds), answer[1], EPSILON);
+    check_answer(median(ds), answer[0], EPSILON);
 
     fprintf(stderr, "%s: mean: ", testname);
-    check_answer(mean(ds), answer[2], EPSILON);
+    check_answer(mean(ds), answer[1], EPSILON);
 
     fprintf(stderr, "%s: var: ", testname);
-    check_answer(var(ds), answer[3], EPSILON);
+    check_answer(var(ds), answer[2], EPSILON);
 
     fprintf(stderr, "%s: sd: ", testname);
-    check_answer(sd(ds), answer[4], EPSILON);
+    check_answer(sd(ds), answer[3], EPSILON);
+
+    fprintf(stderr, "%s: Q1: ", testname);
+    check_answer(first_quartile(ds), answer[4], EPSILON);
+
+    fprintf(stderr, "%s: Q3: ", testname);
+    check_answer(third_quartile(ds), answer[5], EPSILON);
+
+    fprintf(stderr, "%s: IQR: ", testname);
+    check_answer(interquartile_range(ds), answer[6], EPSILON);
+
+    fprintf(stderr, "%s: min: ", testname);
+    check_answer(min(ds), answer[7], EPSILON);
+
+    fprintf(stderr, "%s: max: ", testname);
+    check_answer(max(ds), answer[8], EPSILON);
 }
 
 void test_odd1()
 {
     double data[7] = {9.4, 2.1, -6.5, 34.2, 3.34, 67.5, 8.64};
     size_t n = 7;
-    double answer[5] = {8.64, 8.64, 16.954285714285714, 655.76342857142856,
-                       25.607878252042447};
+    double answer[9] = {8.64, 16.954285714285714, 655.76342857142856,
+                        25.607878252042447, 2.72, 21.8, 18.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_odd1", ds, answer);
@@ -66,9 +81,10 @@ void test_odd2()
         0.81548316};
     size_t n = 101;
 
-    double answer[5] = {0.48142021970636995, 0.48142021970636995,
-                       0.4904530462376237, 0.08335251150960539,
-                       0.28870835025957492};
+    double answer[9] = {0.48142021970636995,
+                        0.4904530462376237, 0.08335251150960539,
+                        0.28870835025957492, 0.28545607, 0.75913846,
+                        0.47368239, 0.00700852, 0.9931002};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_odd2", ds, answer);
@@ -79,9 +95,11 @@ void test_odd3()
 {
     dataset *ds = read_data_file("test_odd.dat");
 
-    double answer[5] = {0.50382482225561787, 0.50382482225561787,
-                       0.50233294716282062, 0.082897444134665946,
-                       0.28791916249993843};
+    double answer[9] = {0.50382482225561787,
+                        0.50233294716282062, 0.082897444134665946,
+                        0.28791916249993843, 0.25413486746800,
+                        0.75404246086600, 0.499907593398,
+                        0.00019540681109, 0.99961258962500};
     test_describe("test_odd3", ds, answer);
     delete_dataset(ds);
 }
@@ -90,11 +108,23 @@ void test_odd4()
 {
     double data[7] = {8.64, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5};
     size_t n = 7;
-    double answer[5] = {8.64, 8.64, 16.954285714285714, 655.76342857142856,
-                       25.607878252042447};
+    double answer[9] = {8.64, 16.954285714285714, 655.76342857142856,
+                        25.607878252042447, 2.72, 21.8, 18.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_odd4", ds, answer);
+    delete_dataset(ds);
+}
+
+void test_odd5()
+{
+    double data[11] = {6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49};
+    size_t n = 11;
+    double answer[9] = {40.0, 33.181818182, 251.96363636364, 15.873362478178,
+                        24.126734282593183, 3.03, 15.6, 6.0, 49.0};
+
+    dataset *ds = create_dataset(data, n);
+    test_describe("test_odd5", ds, answer);
     delete_dataset(ds);
 }
 
@@ -102,8 +132,8 @@ void test_even1()
 {
     double data[8] = {4.3, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5, 8.64};
     size_t n = 8;
-    double answer[5] = {6.47, 6.47, 15.3725, 582.09930714285713,
-                       24.126734282593183};
+    double answer[9] = {6.47, 15.3725, 582.09930714285713,
+                        24.126734282593183, 3.03, 15.6, 12.57, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_even1", ds, answer);
@@ -135,8 +165,10 @@ void test_even2()
         0.83395533,  0.86146147,  0.2151674 ,  0.86681485,  0.85074555};
     size_t n = 100;
 
-    double answer[5] = {0.461976985, 0.461976985, 0.4952750359,
-                       0.08234955831149722, 0.28696612746367334};
+    double answer[9] = {0.461976985, 0.4952750359,
+                        0.08234955831149722, 0.28696612746367334,
+                        0.2480556075, 0.7257265075, 0.4776709,
+                        0.0179069300, 0.9862653100};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_even2", ds, answer);
@@ -145,14 +177,29 @@ void test_even2()
 
 void test_even3()
 {
-    double answer[5] = {0.50056922106177648, 0.50056922106177648,
-                       0.50006327290531249, 0.08331229878740451,
-                       0.28863869939321113};
+    double answer[9] = {0.50056922106177648,
+                        0.50006327290531249, 0.08331229878740451,
+                        0.28863869939321113, 0.25445019760600, 0.74980086801600,
+                        0.49535067041, 0.00007428522194, 0.99986769224100};
 
     dataset *ds = read_data_file("test_even.dat");
     test_describe("test_even3", ds, answer);
     delete_dataset(ds);
 }
+
+void test_even4()
+{
+    double data[6] = {7, 15, 36, 39, 40, 41};
+    size_t n = 6;
+    double answer[9] = {6.47, 15.3725, 582.09930714285713,
+                        24.126734282593183, 15.0, 40.0, 25.0, 7, 41};
+
+    dataset *ds = create_dataset(data, n);
+    test_describe("test_even4", ds, answer);
+    delete_dataset(ds);
+}
+
+
 
 void timings(dataset *ds)
 {
@@ -161,6 +208,11 @@ void timings(dataset *ds)
     fprintf(stderr, "  variance              %.3g µs\n", timeit(var, ds, 0));
     fprintf(stderr, "  standard deviation    %.3g µs\n", timeit(sd, ds, 0));
     fprintf(stderr, "  median                %.3g µs\n", timeit(median, ds, 0));
+    fprintf(stderr, "  Q1                %.3g µs\n", timeit(first_quartile, ds, 0));
+    fprintf(stderr, "  Q2                %.3g µs\n", timeit(third_quartile, ds, 0));
+    fprintf(stderr, "  IQR                %.3g µs\n", timeit(interquartile_range, ds, 0));
+    fprintf(stderr, "  min                %.3g µs\n", timeit(min, ds, 0));
+    fprintf(stderr, "  max                %.3g µs\n", timeit(max, ds, 0));
 }
 
 int main(int argc, const char *argv[])
@@ -182,9 +234,11 @@ int main(int argc, const char *argv[])
     test_odd2();
     test_odd3();
     test_odd4();
+    test_odd5();
     test_even1();
     test_even2();
     test_even3();
+    test_even4();
 
     // Test reading nonexisting file.
     ds = read_data_file("imnotthere.dat");
