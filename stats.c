@@ -153,19 +153,16 @@ double sd(dataset *ds)
 
 double median(dataset *ds)
 {
-    // Compute the median by first sorting the data.
+    // Compute the median by using selection.
+    double high, low;
 
-    if (!ds->sorted) {
-        sort(ds->data, ds->n);
-        ds->sorted = true;
-    }
-
-    size_t high = ds->n / 2;
+    high = select(ds->data, ds->n, ds->n / 2);
     if (ds->n % 2 == 0) {
         // Use slightly convoluted formula to avoid overflow.
-        return ds->data[high - 1] + 0.5 * (ds->data[high] - ds->data[high - 1]);
+        low = select(ds->data, ds->n, ds->n / 2 - 1);
+        return low + 0.5 * (high - low);
     } else {
-        return ds->data[high];
+        return high;
     }
 }
 
