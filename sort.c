@@ -81,32 +81,36 @@ void sort(double *list, size_t n)
 
 double select(double *list, size_t n, size_t k)
 {
-    size_t i, ir, j, l, mid;
+    // Given a list of size n, find the kth smallest value in the list.
+    // This algorithm is based on the one found in Press et al. Numerical
+    // Recipes in C, 2nd edition.
+    size_t i, j;
+    size_t left, mid, right;
     double a, tmp;
 
-    l = 0;
-    ir = n - 1;
+    left = 0;
+    right = n - 1;
     while (true) {
-        if (ir <= l + 1) {
-            if (ir == l + 1 && list[ir] < list[l]) {
-                SWAP(list[l], list[ir]);
+        if (right <= left + 1) {
+            if (right == left + 1 && list[right] < list[left]) {
+                SWAP(list[left], list[right]);
             }
             return list[k];
         } else {
-            mid = (l + ir) >> 1;
-            SWAP(list[mid], list[l + 1]);
-            if (list[l] > list[ir]) {
-                SWAP(list[l], list[ir]);
+            mid = left + (right - left) / 2;
+            SWAP(list[mid], list[left + 1]);
+            if (list[left] > list[right]) {
+                SWAP(list[left], list[right]);
             }
-            if (list[l + 1] > list[ir]) {
-                SWAP(list[l + 1], list[ir]);
+            if (list[left + 1] > list[right]) {
+                SWAP(list[left + 1], list[right]);
             }
-            if (list[l] > list[l + 1]) {
-                SWAP(list[l], list[l + 1]);
+            if (list[left] > list[left + 1]) {
+                SWAP(list[left], list[left + 1]);
             }
-            i = l + 1;
-            j = ir;
-            a = list[l + 1];
+            i = left + 1;
+            j = right;
+            a = list[left + 1];
             while (true) {
                 do {
                     i++;
@@ -117,10 +121,10 @@ double select(double *list, size_t n, size_t k)
                 if (j < i) break;
                 SWAP(list[i], list[j]);
             }
-            list[l + 1] = list[j];
+            list[left + 1] = list[j];
             list[j] = a;
-            if (j >= k) ir = j - 1;
-            if (j <= k) l = i;
+            if (j >= k) right = j - 1;
+            if (j <= k) left = i;
         }
     }
 }

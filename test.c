@@ -86,6 +86,18 @@ void test_odd3()
     delete_dataset(ds);
 }
 
+void test_odd4()
+{
+    double data[7] = {8.64, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5};
+    size_t n = 7;
+    double answer[5] = {8.64, 8.64, 16.954285714285714, 655.76342857142856,
+                       25.607878252042447};
+
+    dataset *ds = create_dataset(data, n);
+    test_describe("test_odd4", ds, answer);
+    delete_dataset(ds);
+}
+
 void test_even1()
 {
     double data[8] = {4.3, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5, 8.64};
@@ -148,7 +160,7 @@ void timings(dataset *ds)
     fprintf(stderr, "  mean                  %.3g µs\n", timeit(mean, ds, 0));
     fprintf(stderr, "  variance              %.3g µs\n", timeit(var, ds, 0));
     fprintf(stderr, "  standard deviation    %.3g µs\n", timeit(sd, ds, 0));
-    fprintf(stderr, "  median                %.3g µs\n", timeit(median, ds, 1));
+    fprintf(stderr, "  median                %.3g µs\n", timeit(median, ds, 0));
 }
 
 int main(int argc, const char *argv[])
@@ -169,6 +181,7 @@ int main(int argc, const char *argv[])
     test_odd1();
     test_odd2();
     test_odd3();
+    test_odd4();
     test_even1();
     test_even2();
     test_even3();
