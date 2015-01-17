@@ -191,8 +191,8 @@ void test_even4()
 {
     double data[6] = {7, 15, 36, 39, 40, 41};
     size_t n = 6;
-    double answer[9] = {6.47, 15.3725, 582.09930714285713,
-                        24.126734282593183, 15.0, 40.0, 25.0, 7, 41};
+    double answer[9] = {37.5, 29.6666666666667, 218.26666666666665,
+                        14.773850773128402, 20.25, 39.75, 19.5, 7.0, 41.0};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_even4", ds, answer);
@@ -208,11 +208,11 @@ void timings(dataset *ds)
     fprintf(stderr, "  variance              %.3g µs\n", timeit(var, ds, 0));
     fprintf(stderr, "  standard deviation    %.3g µs\n", timeit(sd, ds, 0));
     fprintf(stderr, "  median                %.3g µs\n", timeit(median, ds, 0));
-    fprintf(stderr, "  Q1                %.3g µs\n", timeit(first_quartile, ds, 0));
-    fprintf(stderr, "  Q2                %.3g µs\n", timeit(third_quartile, ds, 0));
-    fprintf(stderr, "  IQR                %.3g µs\n", timeit(interquartile_range, ds, 0));
-    fprintf(stderr, "  min                %.3g µs\n", timeit(min, ds, 0));
-    fprintf(stderr, "  max                %.3g µs\n", timeit(max, ds, 0));
+    fprintf(stderr, "  Q1                %.3g µs\n", timeit(first_quartile, ds, 1));
+    fprintf(stderr, "  Q2                %.3g µs\n", timeit(third_quartile, ds, 1));
+    fprintf(stderr, "  IQR                %.3g µs\n", timeit(interquartile_range, ds, 1));
+    fprintf(stderr, "  min                %.3g µs\n", timeit(min, ds, 1));
+    fprintf(stderr, "  max                %.3g µs\n", timeit(max, ds, 1));
 }
 
 int main(int argc, const char *argv[])
