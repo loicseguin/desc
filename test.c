@@ -48,7 +48,7 @@ void test_odd1()
     double data[7] = {9.4, 2.1, -6.5, 34.2, 3.34, 67.5, 8.64};
     size_t n = 7;
     double answer[9] = {8.64, 16.954285714285714, 655.76342857142856,
-                        25.607878252042447, 2.72, 21.8, 18.08, -6.5, 67.5};
+                        25.607878252042447, 2.72, 21.8, 19.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_odd1", ds, answer);
@@ -109,7 +109,7 @@ void test_odd4()
     double data[7] = {8.64, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5};
     size_t n = 7;
     double answer[9] = {8.64, 16.954285714285714, 655.76342857142856,
-                        25.607878252042447, 2.72, 21.8, 18.08, -6.5, 67.5};
+                        25.607878252042447, 2.72, 21.8, 19.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_odd4", ds, answer);
@@ -121,7 +121,7 @@ void test_odd5()
     double data[11] = {6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49};
     size_t n = 11;
     double answer[9] = {40.0, 33.181818182, 251.96363636364, 15.873362478178,
-                        24.126734282593183, 3.03, 15.6, 6.0, 49.0};
+                        25.5, 42.5, 17.0, 6.0, 49.0};
 
     dataset *ds = create_dataset(data, n);
     test_describe("test_odd5", ds, answer);
@@ -207,9 +207,9 @@ void timings(dataset *ds)
     fprintf(stderr, "  mean                  %.3g µs\n", timeit(mean, ds, 0));
     fprintf(stderr, "  variance              %.3g µs\n", timeit(var, ds, 0));
     fprintf(stderr, "  standard deviation    %.3g µs\n", timeit(sd, ds, 0));
-    fprintf(stderr, "  median                %.3g µs\n", timeit(median, ds, 0));
+    fprintf(stderr, "  median                %.3g µs\n", timeit(median, ds, 1));
     fprintf(stderr, "  Q1                %.3g µs\n", timeit(first_quartile, ds, 1));
-    fprintf(stderr, "  Q2                %.3g µs\n", timeit(third_quartile, ds, 1));
+    fprintf(stderr, "  Q3                %.3g µs\n", timeit(third_quartile, ds, 1));
     fprintf(stderr, "  IQR                %.3g µs\n", timeit(interquartile_range, ds, 1));
     fprintf(stderr, "  min                %.3g µs\n", timeit(min, ds, 1));
     fprintf(stderr, "  max                %.3g µs\n", timeit(max, ds, 1));
