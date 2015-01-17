@@ -211,8 +211,8 @@ void timings(dataset *ds)
     fprintf(stderr, "  Q1                  %.3g µs\n", timeit(first_quartile, ds, 1));
     fprintf(stderr, "  Q3                  %.3g µs\n", timeit(third_quartile, ds, 1));
     fprintf(stderr, "  IQR                 %.3g µs\n", timeit(interquartile_range, ds, 1));
-    fprintf(stderr, "  min                 %.3g µs\n", timeit(min, ds, 1));
-    fprintf(stderr, "  max                 %.3g µs\n", timeit(max, ds, 1));
+    fprintf(stderr, "  min                 %.3g µs\n", timeit(min, ds, 0));
+    fprintf(stderr, "  max                 %.3g µs\n", timeit(max, ds, 0));
 }
 
 int main(int argc, const char *argv[])
