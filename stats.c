@@ -65,7 +65,13 @@ dataset* read_data_file(char *filename) {
     double datum;
     size_t n = 0, cur_data_size = BASE_DATA_SIZE, next_size;
     unsigned int ntry;
-    FILE *fp = fopen(filename, "r");
+    FILE *fp;
+
+    if (filename == NULL) {
+        fp = stdin;
+    } else {
+        fp = fopen(filename, "r");
+    }
 
     // Make sure file was opened.
     if (fp == NULL) {
@@ -110,7 +116,8 @@ dataset* read_data_file(char *filename) {
         n++;
     }
 
-    fclose(fp);
+    if (filename != NULL)
+        fclose(fp);
 
     // Free the unused memory at the end of the data array.
     ds->data = (double*)realloc(ds->data, n * sizeof(double));
@@ -214,13 +221,31 @@ double interquartile_range(dataset *ds)
 double min(dataset *ds)
 {
     // Find the minimum in the array.
-    return select(ds->data, ds->n, 0);
+    double _min = ds->data[0];
+    size_t i, n = ds->n;
+    double *data = ds->data;
+
+    for (i = 1; i < n; i++) {
+        if (data[i] < _min)
+            _min = data[i];
+    }
+
+    return _min;
 }
 
 double max(dataset *ds)
 {
     // Find the maximum in the array.
-    return select(ds->data, ds->n, ds->n - 1);
+    double _max = ds->data[0];
+    size_t i, n = ds->n;
+    double *data = ds->data;
+
+    for (i = 1; i < n; i++) {
+        if (data[i] > _max)
+            _max = data[i];
+    }
+
+    return _max;
 }
 
 double timeit(double (*datafunc)(dataset *), dataset *ds, int n) {
