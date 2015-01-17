@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include "dbg.h"
 #include "stats.h"
 
 #define MAX_LINELENGTH 100
@@ -13,27 +14,30 @@
 
 #define SWAP(a, b) tmp=(a); a=(b); (b)=tmp;
 
+double _select(double *list, size_t n, size_t k);
+
 dataset* init_empty_dataset(size_t n)
 {
     dataset *ds;
 
     ds = (dataset*)malloc(sizeof(dataset));
-    if (ds == NULL) {
-        perror("stats.c:init_empty_dataset");
-        exit(1);
-    }
+    check_mem(ds);
 
     ds->data = (double*)malloc(n * sizeof(double));
-    if (ds->data == NULL) {
-        perror("stats.c:init_empty_dataset");
-        exit(1);
-    }
+    check_mem(ds->data);
 
     ds->sum = 0;
     ds->ss = 0;
     ds->n = n;
 
     return ds;
+
+error:
+    if (ds) {
+        if (ds->data) free(ds->data);
+        free(ds);
+    }
+    return NULL;
 }
 
 dataset* create_dataset(double *array, size_t n)
@@ -42,6 +46,7 @@ dataset* create_dataset(double *array, size_t n)
     dataset *ds;
 
     ds = init_empty_dataset(n);
+    check(ds, "Failed to create dataset.");
 
     for (i = 0; i < n; i++) {
         ds->data[i] = array[i];
@@ -50,22 +55,62 @@ dataset* create_dataset(double *array, size_t n)
     }
 
     return ds;
+
+error:
+    return NULL;
 }
 
 void delete_dataset(dataset *ds)
 {
-    assert(ds != NULL);
+    check(ds, "Can't delete non existent dataset.");
     free(ds->data);
     free(ds);
+
+error:
+    return;
 }
 
-dataset* read_data_file(char *filename) {
-    dataset *ds;
-    double *newdata;
+size_t _grow_data(double **data, size_t n)
+{
+    // Try to allocate more memory for a data array.
+    // First, try to double the size of the array. If that fails, increment the
+    // size of the array by the greatest possible multiple of BASE_DATA_SIZE.
+    //
+    // NOTE: It is necessary to pass a pointer to the data pointer because C is
+    // pass by value. If only the data pointer is passed, the assignment
+    // data = newdata is only local to this function and the data pointer in
+    // the calling function is not changed. This will blow up because realloc
+    // frees the memory pointed to by data.
+    unsigned int ntry, max_tries;
+    size_t next_size = n * 2;
+
+    ntry = max_tries = n / BASE_DATA_SIZE - 1;
+
+    double *newdata = (double*)realloc(*data, next_size * sizeof(double));
+    while (!newdata && ntry > 0) {
+        if (ntry == max_tries) {
+            log_warn("The dataset is large and you are "
+                     "running low on memory.");
+        }
+        next_size = n + ntry * BASE_DATA_SIZE;
+        ntry--;
+        newdata = (double*)realloc(*data, next_size * sizeof(double));
+    }
+    check_debug(newdata, "Memory error");
+    *data = newdata;
+    return next_size;
+
+error:
+    if (newdata) free(newdata);
+    return (size_t)-1;
+}
+
+dataset* read_data_file(char *filename)
+{
+    dataset *ds = NULL;
     char buffer[MAX_LINELENGTH];
     double datum;
-    size_t n = 0, cur_data_size = BASE_DATA_SIZE, next_size;
-    unsigned int ntry;
+    size_t n = 0, cur_data_size = BASE_DATA_SIZE;
     FILE *fp;
     char *endptr;
 
@@ -73,48 +118,31 @@ dataset* read_data_file(char *filename) {
         fp = stdin;
     } else {
         fp = fopen(filename, "r");
-    }
-
-    // Make sure file was opened.
-    if (fp == NULL) {
-        perror(filename);
-        exit(1);
+        // Make sure file was opened.
+        check(fp, "Failed to open %s.", filename);
     }
 
     // Start by creating an empty dataset of small size.
     ds = init_empty_dataset(BASE_DATA_SIZE);
+    check_mem(ds);
 
     while(fgets(buffer, MAX_LINELENGTH, fp) != NULL) {
         datum = strtod(buffer, &endptr);
 
         if (errno == ERANGE) {
             // Overflow or underflow occured, warn the user but keep going.
-            perror("Warning");
+            log_warn("Results might not be correct.");
         }
 
         if (endptr == buffer) {
-            // No conversion was performed. Skip this line.
+            // No conversion was performed. Go to to next line.
             continue;
         }
 
         if (n >= cur_data_size) {
             // If the current dataset size if not big enough, try to grow.
-            ntry = 1;
-            next_size = cur_data_size * 2;
-            newdata = (double*)realloc(ds->data, next_size * sizeof(double));
-            while (newdata == NULL && ntry < cur_data_size / BASE_DATA_SIZE) {
-                perror("Warning");
-                fprintf(stderr, "It seems the dataset is large and you are "
-                                "running low on memory.");
-                next_size = cur_data_size + BASE_DATA_SIZE;
-                newdata = (double*)realloc(ds->data, next_size * sizeof(double));
-            }
-            if (newdata == NULL) {
-                fprintf(stderr, "Error: failed to allocate memory.");
-                exit(1);
-            }
-            ds->data = newdata;
-            cur_data_size = next_size;
+            cur_data_size = _grow_data(&(ds->data), cur_data_size);
+            check(cur_data_size != (size_t)-1, "Could not grow data.");
         }
 
         ds->data[n] = datum;
@@ -123,14 +151,20 @@ dataset* read_data_file(char *filename) {
         n++;
     }
 
-    if (filename != NULL)
+    if (filename)
         fclose(fp);
 
     // Free the unused memory at the end of the data array.
     ds->data = (double*)realloc(ds->data, n * sizeof(double));
+    check_mem(ds->data);
     ds->n = n;
 
     return ds;
+
+error:
+    if (filename && fp) fclose(fp);
+    if (ds) delete_dataset(ds);
+    return NULL;
 }
 
 double mean(dataset *ds)
@@ -155,10 +189,10 @@ double median(dataset *ds)
     // of odd length.
     double high, low;
 
-    high = select(ds->data, ds->n, ds->n / 2);
+    high = _select(ds->data, ds->n, ds->n / 2);
     if (ds->n % 2 == 0) {
         // Use slightly convoluted formula to avoid overflow.
-        low = select(ds->data, ds->n, ds->n / 2 - 1);
+        low = _select(ds->data, ds->n, ds->n / 2 - 1);
         return low + 0.5 * (high - low);
     } else {
         return high;
@@ -186,6 +220,7 @@ double percentile(dataset *ds, double q)
     // Inspired by the implementation in Numpy
     // http://github.com/numpy/numpy/blob/v1.9.1/numpy/lib/function_base.py#L2947
 
+    check_debug(ds->n > 1, "Can't compute percentile dataset with less than 2 elements.");
     double index = q * (ds->n - 1) / 100.0;
     double weight_above, low, high;
     int index_below = (int)index;
@@ -196,9 +231,16 @@ double percentile(dataset *ds, double q)
     }
 
     weight_above = index - index_below;
-    low = select(ds->data, ds->n, index_below);
-    high = select(ds->data, ds->n, index_above);
+    low = _select(ds->data, ds->n, index_below);
+    high = _select(ds->data, ds->n, index_above);
     return low * (1 - weight_above) + high * weight_above;
+
+error:
+#ifdef NAN
+    return NAN;
+#else
+    return 0;
+#endif
 }
 
 double interquartile_range(dataset *ds)
@@ -211,6 +253,7 @@ double interquartile_range(dataset *ds)
 double min(dataset *ds)
 {
     // Find the minimum in the array.
+    check_debug(ds->n > 0, "Can't compute minimum of empty dataset.");
     double _min = ds->data[0];
     size_t i, n = ds->n;
     double *data = ds->data;
@@ -221,11 +264,19 @@ double min(dataset *ds)
     }
 
     return _min;
+
+error:
+#ifdef NAN
+    return NAN;
+#else
+    return 0;
+#endif
 }
 
 double max(dataset *ds)
 {
     // Find the maximum in the array.
+    check_debug(ds->n > 0, "Can't compute maximum of empty dataset.");
     double _max = ds->data[0];
     size_t i, n = ds->n;
     double *data = ds->data;
@@ -236,9 +287,16 @@ double max(dataset *ds)
     }
 
     return _max;
+
+error:
+#ifdef NAN
+    return NAN;
+#else
+    return 0;
+#endif
 }
 
-double select(double *list, size_t n, size_t k)
+double _select(double *list, size_t n, size_t k)
 {
     // Given a list of size n, find the kth smallest value in the list.
     // This algorithm is based on the one found in Press et al. Numerical
@@ -247,6 +305,7 @@ double select(double *list, size_t n, size_t k)
     size_t left, mid, right;
     double a, tmp;
 
+    check_debug(n > 0, "Can't select from empty dataset.");
     left = 0;
     right = n - 1;
     while (true) {
@@ -286,6 +345,13 @@ double select(double *list, size_t n, size_t k)
             if (j <= k) left = i;
         }
     }
+
+error:
+#ifdef NAN
+    return NAN;
+#else
+    return 0;
+#endif
 }
 
 double timeit(double (*datafunc)(dataset *), dataset *ds, int n) {
