@@ -21,6 +21,7 @@ double mean(dataset *ds);
 double var(dataset *ds);
 double sd(dataset *ds);
 double median(dataset *ds);
+double percentile(dataset *ds, double q);
 double first_quartile(dataset *ds);
 double third_quartile(dataset *ds);
 double interquartile_range(dataset *ds);

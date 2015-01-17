@@ -153,7 +153,9 @@ double sd(dataset *ds)
 
 double median(dataset *ds)
 {
-    // Compute the median using selection.
+    // Compute the median using selection. This could be done using the
+    // percentile function, but here we only perform one select call for arrays
+    // of odd length.
     double high, low;
 
     high = select(ds->data, ds->n, ds->n / 2);
@@ -169,33 +171,37 @@ double median(dataset *ds)
 double first_quartile(dataset *ds)
 {
     // Compute the first quartile using selection.
-    double high, low;
-
-    high = select(ds->data, ds->n, ds->n / 4 + 1);
-    low = select(ds->data, ds->n, ds->n / 4);
-    if (ds->n % 2 == 0) {
-        return low + 0.5 * (high - low);
-    } else if (ds->n % 4 == 1) {
-        return low + 0.75 * (high - low);
-    } else {
-        return low + 0.25 * (high - low);
-    }
+    return percentile(ds, 25.0);
 }
+
 
 double third_quartile(dataset *ds)
 {
     // Compute the third quartile using selection.
-    double high, low;
+    return percentile(ds, 75.0);
+}
 
-    high = select(ds->data, ds->n, 3 * ds->n / 4);
-    low = select(ds->data, ds->n, 3 * ds->n / 4 - 1);
-    if (ds->n % 2 == 0) {
-        return low + 0.5 * (high - low);
-    } else if (ds->n % 4 == 1) {
-        return low + 0.25 * (high - low);
-    } else {
-        return low + 0.75 * (high - low);
+double percentile(dataset *ds, double q)
+{
+    // Find the qth percentile where q is a float between 0 and 100.
+    // Using q = 0 gives the minimum, q = 50, the median, q = 100 the maximum.
+    //
+    // Inspired by the implementation in Numpy
+    // http://github.com/numpy/numpy/blob/v1.9.1/numpy/lib/function_base.py#L2947
+
+    double index = q * (ds->n - 1) / 100.0;
+    double weight_above, low, high;
+    int index_below = (int)index;
+    int index_above = index_below + 1;
+
+    if (index_above > ds->n - 1) {
+        index_above = ds->n - 1;
     }
+
+    weight_above = index - index_below;
+    low = select(ds->data, ds->n, index_below);
+    high = select(ds->data, ds->n, index_above);
+    return low * (1 - weight_above) + high * weight_above;
 }
 
 double interquartile_range(dataset *ds)
@@ -207,11 +213,13 @@ double interquartile_range(dataset *ds)
 
 double min(dataset *ds)
 {
+    // Find the minimum in the array.
     return select(ds->data, ds->n, 0);
 }
 
 double max(dataset *ds)
 {
+    // Find the maximum in the array.
     return select(ds->data, ds->n, ds->n - 1);
 }
 
