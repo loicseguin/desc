@@ -67,6 +67,7 @@ dataset* read_data_file(char *filename) {
     size_t n = 0, cur_data_size = BASE_DATA_SIZE, next_size;
     unsigned int ntry;
     FILE *fp;
+    char *endptr;
 
     if (filename == NULL) {
         fp = stdin;
@@ -84,11 +85,16 @@ dataset* read_data_file(char *filename) {
     ds = init_empty_dataset(BASE_DATA_SIZE);
 
     while(fgets(buffer, MAX_LINELENGTH, fp) != NULL) {
-        datum = strtod(buffer, NULL);
+        datum = strtod(buffer, &endptr);
 
         if (errno == ERANGE) {
             // Overflow or underflow occured, warn the user but keep going.
             perror("Warning");
+        }
+
+        if (endptr == buffer) {
+            // No conversion was performed. Skip this line.
+            continue;
         }
 
         if (n >= cur_data_size) {
