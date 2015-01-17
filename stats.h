@@ -1,12 +1,10 @@
 #ifndef STATS_H
 #define STATS_H
 
-#include <stdbool.h>
 #include <stdlib.h>
 
 typedef struct dataset {
     double *data;
-    bool sorted;
     size_t n;
     double sum;
     double ss;
@@ -27,6 +25,7 @@ double third_quartile(dataset *ds);
 double interquartile_range(dataset *ds);
 double min(dataset *ds);
 double max(dataset *ds);
+double select(double *list, size_t n, size_t k);
 double timeit(double (*datafunc)(dataset *), dataset *ds, int n);
 
 #endif

@@ -2,14 +2,16 @@
 #include <errno.h>
 #include <math.h>
 #include <time.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include "sort.h"
 #include "stats.h"
 
 #define MAX_LINELENGTH 100
 #define BASE_DATA_SIZE 32
 #define MICROSECS_PER_SEC 1000000
+
+#define SWAP(a, b) tmp=(a); a=(b); (b)=tmp;
 
 dataset* init_empty_dataset(size_t n)
 {
@@ -30,7 +32,6 @@ dataset* init_empty_dataset(size_t n)
     ds->sum = 0;
     ds->ss = 0;
     ds->n = n;
-    ds->sorted = false;
 
     return ds;
 }
@@ -124,23 +125,6 @@ dataset* read_data_file(char *filename) {
     ds->n = n;
 
     return ds;
-}
-
-void print_array(double *arr, size_t n)
-{
-    size_t i;
-    for (i = 0; i < n; i++) {
-        printf("%.3f", arr[i]);
-        if (i < n - 1) {
-            printf(", ");
-        }
-    }
-    printf("\n");
-}
-
-void print_dataset(dataset *ds)
-{
-    print_array(ds->data, ds->n);
 }
 
 double mean(dataset *ds)
@@ -246,6 +230,56 @@ double max(dataset *ds)
     }
 
     return _max;
+}
+
+double select(double *list, size_t n, size_t k)
+{
+    // Given a list of size n, find the kth smallest value in the list.
+    // This algorithm is based on the one found in Press et al. Numerical
+    // Recipes in C, 2nd edition.
+    size_t i, j;
+    size_t left, mid, right;
+    double a, tmp;
+
+    left = 0;
+    right = n - 1;
+    while (true) {
+        if (right <= left + 1) {
+            if (right == left + 1 && list[right] < list[left]) {
+                SWAP(list[left], list[right]);
+            }
+            return list[k];
+        } else {
+            mid = left + (right - left) / 2;
+            SWAP(list[mid], list[left + 1]);
+            if (list[left] > list[right]) {
+                SWAP(list[left], list[right]);
+            }
+            if (list[left + 1] > list[right]) {
+                SWAP(list[left + 1], list[right]);
+            }
+            if (list[left] > list[left + 1]) {
+                SWAP(list[left], list[left + 1]);
+            }
+            i = left + 1;
+            j = right;
+            a = list[left + 1];
+            while (true) {
+                do {
+                    i++;
+                } while (list[i] < a);
+                do {
+                    j--;
+                } while (list[j] > a);
+                if (j < i) break;
+                SWAP(list[i], list[j]);
+            }
+            list[left + 1] = list[j];
+            list[j] = a;
+            if (j >= k) right = j - 1;
+            if (j <= k) left = i;
+        }
+    }
 }
 
 double timeit(double (*datafunc)(dataset *), dataset *ds, int n) {
