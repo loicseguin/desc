@@ -1,0 +1,5 @@
+*.o
+*.dSYM
+desc
+timings
+test
