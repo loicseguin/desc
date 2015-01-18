@@ -1,49 +1,52 @@
 #include <math.h>
 #include <stdio.h>
+#include "dbg.h"
 #include "stats.h"
 
 #define EPSILON 1e-8
 
-void check_answer(double computed, double answer, double tol)
+
+#define mu_start() char *message = NULL
+
+#define mu_run_test(test) debug("\n-----%s", " " #test); \
+    message = test(); tests_run++; if (message) return message
+
+#define mu_assert(test, message) if (!(test)) { log_err(message); return message; }
+
+#define test_statistic(stat, i) mu_assert(check_answer(stat(ds), answer[i], EPSILON), \
+                                          "failed to compute " #stat ".");
+
+#define test_dataset() char *msg = test_describe(ds, answer); \
+                       delete_dataset(ds); if (msg) return msg; return NULL;
+
+int tests_run = 0;
+
+
+int check_answer(double computed, double answer, double tol)
 {
     if (computed < answer + tol && computed > answer - tol) {
-        fprintf(stderr, "ok\n");
+        return 1;
     } else {
-        fprintf(stderr, "error (expected %.9g, got %.9g)\n", answer, computed);
+        fprintf(stderr, "[ERROR] expected %.9g, got %.9g\n", answer, computed);
+        return 0;
     }
 }
 
-void test_describe(char *testname, dataset *ds, double *answer)
+char *test_describe(dataset *ds, double *answer)
 {
-    fprintf(stderr, "%s: median: ", testname);
-    check_answer(median(ds), answer[0], EPSILON);
-
-    fprintf(stderr, "%s: mean: ", testname);
-    check_answer(mean(ds), answer[1], EPSILON);
-
-    fprintf(stderr, "%s: var: ", testname);
-    check_answer(var(ds), answer[2], EPSILON);
-
-    fprintf(stderr, "%s: sd: ", testname);
-    check_answer(sd(ds), answer[3], EPSILON);
-
-    fprintf(stderr, "%s: Q1: ", testname);
-    check_answer(first_quartile(ds), answer[4], EPSILON);
-
-    fprintf(stderr, "%s: Q3: ", testname);
-    check_answer(third_quartile(ds), answer[5], EPSILON);
-
-    fprintf(stderr, "%s: IQR: ", testname);
-    check_answer(interquartile_range(ds), answer[6], EPSILON);
-
-    fprintf(stderr, "%s: min: ", testname);
-    check_answer(min(ds), answer[7], EPSILON);
-
-    fprintf(stderr, "%s: max: ", testname);
-    check_answer(max(ds), answer[8], EPSILON);
+    test_statistic(median, 0);
+    test_statistic(mean, 1);
+    test_statistic(var, 2);
+    test_statistic(sd, 3);
+    test_statistic(first_quartile, 4);
+    test_statistic(third_quartile, 5);
+    test_statistic(interquartile_range, 6);
+    test_statistic(min, 7);
+    test_statistic(max, 8);
+    return NULL;
 }
 
-void test_odd1()
+char *test_odd1()
 {
     double data[7] = {9.4, 2.1, -6.5, 34.2, 3.34, 67.5, 8.64};
     size_t n = 7;
@@ -51,11 +54,10 @@ void test_odd1()
                         25.607878252042447, 2.72, 21.8, 19.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_odd1", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_odd2()
+char *test_odd2()
 {
     double data[101] = {
         0.43237019,  0.89965341,  0.65736954,  0.29787347,  0.97940454,
@@ -87,24 +89,22 @@ void test_odd2()
                         0.47368239, 0.00700852, 0.9931002};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_odd2", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_odd3()
+char *test_odd3()
 {
-    dataset *ds = read_data_file("test_odd.dat");
+    dataset *ds = read_data_file("data/odd.dat");
 
     double answer[9] = {0.50382482225561787,
                         0.50233294716282062, 0.082897444134665946,
                         0.28791916249993843, 0.25413486746800,
                         0.75404246086600, 0.499907593398,
                         0.00019540681109, 0.99961258962500};
-    test_describe("test_odd3", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_odd4()
+char *test_odd4()
 {
     double data[7] = {8.64, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5};
     size_t n = 7;
@@ -112,11 +112,10 @@ void test_odd4()
                         25.607878252042447, 2.72, 21.8, 19.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_odd4", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_odd5()
+char *test_odd5()
 {
     double data[11] = {6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49};
     size_t n = 11;
@@ -124,11 +123,10 @@ void test_odd5()
                         25.5, 42.5, 17.0, 6.0, 49.0};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_odd5", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_even1()
+char *test_even1()
 {
     double data[8] = {4.3, 9.4, 2.1, -6.5, 34.2, 3.34, 67.5, 8.64};
     size_t n = 8;
@@ -136,11 +134,10 @@ void test_even1()
                         24.126734282593183, 3.03, 15.6, 12.57, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_even1", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_even2()
+char *test_even2()
 {
     double data[100] = {
         0.27564984,  0.76216363,  0.17482944,  0.42485547,  0.26271342,
@@ -171,23 +168,21 @@ void test_even2()
                         0.0179069300, 0.9862653100};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_even2", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-void test_even3()
+char *test_even3()
 {
     double answer[9] = {0.50056922106177648,
                         0.50006327290531249, 0.08331229878740451,
                         0.28863869939321113, 0.25445019760600, 0.74980086801600,
                         0.49535067041, 0.00007428522194, 0.99986769224100};
 
-    dataset *ds = read_data_file("test_even.dat");
-    test_describe("test_even3", ds, answer);
-    delete_dataset(ds);
+    dataset *ds = read_data_file("data/even.dat");
+    test_dataset();
 }
 
-void test_even4()
+char *test_even4()
 {
     double data[6] = {7, 15, 36, 39, 40, 41};
     size_t n = 6;
@@ -195,53 +190,64 @@ void test_even4()
                         14.773850773128402, 20.25, 39.75, 19.5, 7.0, 41.0};
 
     dataset *ds = create_dataset(data, n);
-    test_describe("test_even4", ds, answer);
-    delete_dataset(ds);
+    test_dataset();
 }
 
-
-
-void timings(dataset *ds)
+char *test_empty()
 {
-    fprintf(stderr, "Timings\n");
-    fprintf(stderr, "  mean                %.3g µs\n", timeit(mean, ds, 0));
-    fprintf(stderr, "  variance            %.3g µs\n", timeit(var, ds, 0));
-    fprintf(stderr, "  standard deviation  %.3g µs\n", timeit(sd, ds, 0));
-    fprintf(stderr, "  median              %.3g µs\n", timeit(median, ds, 1));
-    fprintf(stderr, "  Q1                  %.3g µs\n", timeit(first_quartile, ds, 1));
-    fprintf(stderr, "  Q3                  %.3g µs\n", timeit(third_quartile, ds, 1));
-    fprintf(stderr, "  IQR                 %.3g µs\n", timeit(interquartile_range, ds, 1));
-    fprintf(stderr, "  min                 %.3g µs\n", timeit(min, ds, 0));
-    fprintf(stderr, "  max                 %.3g µs\n", timeit(max, ds, 0));
+    double data[0] = {};
+    size_t n = 0;
+
+    dataset *ds = create_dataset(data, n);
+    mu_assert(ds != NULL, "Could not create empty dataset");
+    median(ds);
+    mean(ds);
+    var(ds);
+    sd(ds);
+    first_quartile(ds);
+    third_quartile(ds);
+    interquartile_range(ds);
+    min(ds);
+    max(ds);
+
+    delete_dataset(ds);
+
+    return NULL;
+}
+
+char *test_nofile()
+{
+    dataset *ds = read_data_file("imnotthere.dat");
+    mu_assert(ds == NULL, "Read non existent file");
+    return NULL;
+}
+
+char *all_tests()
+{
+    mu_start();
+
+    mu_run_test(test_odd1);
+    mu_run_test(test_odd2);
+    mu_run_test(test_odd3);
+    mu_run_test(test_odd4);
+    mu_run_test(test_odd5);
+    mu_run_test(test_even1);
+    mu_run_test(test_even2);
+    mu_run_test(test_even3);
+    mu_run_test(test_even4);
+    mu_run_test(test_empty);
+    mu_run_test(test_nofile);
+
+    return NULL;
 }
 
 int main(int argc, const char *argv[])
 {
-    dataset *ds;
-
-    ds = read_data_file("test_odd.dat");
-    fprintf(stderr, "Odd Data Set ");
-    timings(ds);
-    delete_dataset(ds);
-
-    ds = read_data_file("test_even.dat");
-    fprintf(stderr, "\nEven Data Set ");
-    timings(ds);
-    delete_dataset(ds);
-    fprintf(stderr, "\n");
-
-    test_odd1();
-    test_odd2();
-    test_odd3();
-    test_odd4();
-    test_odd5();
-    test_even1();
-    test_even2();
-    test_even3();
-    test_even4();
-
-    // Test reading nonexisting file.
-    ds = read_data_file("imnotthere.dat");
-
-    return 0;
+    char *result = all_tests();
+    if (result != 0)
+        printf("FAILED: %s\n", result);
+    else
+        printf("All tests passed.\n");
+    printf("Ran %d tests.\n", tests_run);
+    return (result != 0);
 }
