@@ -2,7 +2,6 @@
 #include <errno.h>
 #include <math.h>
 #include <time.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include "dbg.h"
@@ -29,6 +28,9 @@ dataset* init_empty_dataset(size_t n)
     ds->sum = 0;
     ds->ss = 0;
     ds->n = n;
+    ds->has_q1 = false;
+    ds->has_q3 = false;
+    ds->has_minmax = false;
 
     return ds;
 
@@ -202,14 +204,22 @@ double median(dataset *ds)
 double first_quartile(dataset *ds)
 {
     // Compute the first quartile using selection.
-    return percentile(ds, 25.0);
+    if (ds->has_q1)
+        return ds->q1;
+    ds->q1 = percentile(ds, 25.0);
+    ds->has_q1 = true;
+    return ds->q1;
 }
 
 
 double third_quartile(dataset *ds)
 {
     // Compute the third quartile using selection.
-    return percentile(ds, 75.0);
+    if (ds->has_q3)
+        return ds->q3;
+    ds->q3 = percentile(ds, 75.0);
+    ds->has_q3 = true;
+    return ds->q3;
 }
 
 double percentile(dataset *ds, double q)
@@ -250,50 +260,52 @@ double interquartile_range(dataset *ds)
     return third_quartile(ds) - first_quartile(ds);
 }
 
-double min(dataset *ds)
+void _minmax(dataset *ds)
 {
-    // Find the minimum in the array.
-    check_debug(ds->n > 0, "Can't compute minimum of empty dataset.");
+    // Find the max and the min in one pass.
+    check_debug(ds->n > 0, "Can't compute minimum/maximum of empty dataset.");
     double _min = ds->data[0];
+    double _max = ds->data[0];
     size_t i, n = ds->n;
     double *data = ds->data;
 
-    for (i = 1; i < n; i++) {
+    for (i = 0; i < n; i++) {
         if (data[i] < _min)
             _min = data[i];
+        else if (data[i] > _max)
+            _max = data[i];
     }
-
-    return _min;
+    ds->min = _min;
+    ds->max = _max;
+    ds->has_minmax = true;
+    return;
 
 error:
 #ifdef NAN
-    return NAN;
+    ds->min = NAN;
+    ds->max = NAN;
 #else
-    return 0;
+    ds->min = 0;
+    ds->max = 0;
 #endif
+    ds->has_minmax = true;
+    return;
+}
+
+double min(dataset *ds)
+{
+    // Find the minimum in the array.
+    if (!ds->has_minmax)
+        _minmax(ds);
+    return ds->min;
 }
 
 double max(dataset *ds)
 {
     // Find the maximum in the array.
-    check_debug(ds->n > 0, "Can't compute maximum of empty dataset.");
-    double _max = ds->data[0];
-    size_t i, n = ds->n;
-    double *data = ds->data;
-
-    for (i = 1; i < n; i++) {
-        if (data[i] > _max)
-            _max = data[i];
-    }
-
-    return _max;
-
-error:
-#ifdef NAN
-    return NAN;
-#else
-    return 0;
-#endif
+    if (!ds->has_minmax)
+        _minmax(ds);
+    return ds->max;
 }
 
 double _select(double *list, size_t n, size_t k)

@@ -1,6 +1,7 @@
 #ifndef STATS_H
 #define STATS_H
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 typedef struct dataset {
@@ -8,6 +9,13 @@ typedef struct dataset {
     size_t n;
     double sum;
     double ss;
+    double q1;
+    double q3;
+    double min;
+    double max;
+    bool has_q1;
+    bool has_q3;
+    bool has_minmax;
 } dataset;
 
 dataset* create_dataset(double *array, size_t n);
