@@ -34,8 +34,8 @@ clean:
 	rm -rf *.dSYM
 
 install: all
-	install -d $(DESTDIR)/$(PREFIX)/bin/
-	install $(TARGET) $(DESTDIR)/$(PREFIX)/bin/
+	install -d $(PREFIX)/bin/
+	install $(TARGET) $(PREFIX)/bin/
 
 BADFUNCS='[^_.>a-zA-Z0-9](str(n?cpy|n?cat|xfrm|n?dup|str|pbrk|tok|_)|stpn?cpy|a?sn?printf|byte_)'
 check:
