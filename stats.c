@@ -233,8 +233,8 @@ double percentile(dataset *ds, double q)
     check_debug(ds->n > 1, "Can't compute percentile dataset with less than 2 elements.");
     double index = q * (ds->n - 1) / 100.0;
     double weight_above, low, high;
-    int index_below = (int)index;
-    int index_above = index_below + 1;
+    size_t index_below = (size_t)index;
+    size_t index_above = index_below + 1;
 
     if (index_above > ds->n - 1) {
         index_above = ds->n - 1;
