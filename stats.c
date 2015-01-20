@@ -27,7 +27,7 @@ dataset* init_empty_dataset(size_t n)
 
     ds->sum = 0;
     ds->ss = 0;
-    ds->n = n;
+    ds->n = 0;
     ds->has_q1 = false;
     ds->has_q3 = false;
     ds->has_minmax = false;
@@ -55,6 +55,7 @@ dataset* create_dataset(double *array, size_t n)
         ds->sum += array[i];
         ds->ss += array[i] * array[i];
     }
+    ds->n = n;
 
     return ds;
 
