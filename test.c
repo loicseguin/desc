@@ -24,6 +24,9 @@ int tests_run = 0;
 
 int check_answer(double computed, double answer, double tol)
 {
+    if (isnan(computed) && isnan(answer)) {
+        return 1;
+    }
     if (computed < answer + tol && computed > answer - tol) {
         return 1;
     } else {
@@ -94,12 +97,24 @@ char *test_odd2()
 
 char *test_odd3()
 {
-    dataset *ds = read_data_file("data/odd.dat");
+    dataset *ds = read_data_file("data/odd.dat", false);
 
     double answer[9] = {0.50382482225561787,
                         0.50233294716282062, 0.082897444134665946,
                         0.28791916249993843, 0.25413486746800,
                         0.75404246086600, 0.499907593398,
+                        0.00019540681109, 0.99961258962500};
+    test_dataset();
+}
+
+char *test_odd3_streaming()
+{
+    dataset *ds = read_data_file("data/odd.dat", true);
+
+    double answer[9] = {NAN,
+                        0.50233294716282062, 0.082897444134665946,
+                        0.28791916249993843, NAN,
+                        NAN, NAN,
                         0.00019540681109, 0.99961258962500};
     test_dataset();
 }
@@ -178,7 +193,18 @@ char *test_even3()
                         0.28863869939321113, 0.25445019760600, 0.74980086801600,
                         0.49535067041, 0.00007428522194, 0.99986769224100};
 
-    dataset *ds = read_data_file("data/even.dat");
+    dataset *ds = read_data_file("data/even.dat", false);
+    test_dataset();
+}
+
+char *test_even3_streaming()
+{
+    double answer[9] = {NAN,
+                        0.50006327290531249, 0.08331229878740451,
+                        0.28863869939321113, NAN, NAN,
+                        NAN, 0.00007428522194, 0.99986769224100};
+
+    dataset *ds = read_data_file("data/even.dat", true);
     test_dataset();
 }
 
@@ -217,7 +243,7 @@ char *test_empty()
 
 char *test_nofile()
 {
-    dataset *ds = read_data_file("imnotthere.dat");
+    dataset *ds = read_data_file("imnotthere.dat", false);
     mu_assert(ds == NULL, "Read non existent file");
     return NULL;
 }
@@ -229,11 +255,13 @@ char *all_tests()
     mu_run_test(test_odd1);
     mu_run_test(test_odd2);
     mu_run_test(test_odd3);
+    mu_run_test(test_odd3_streaming);
     mu_run_test(test_odd4);
     mu_run_test(test_odd5);
     mu_run_test(test_even1);
     mu_run_test(test_even2);
     mu_run_test(test_even3);
+    mu_run_test(test_even3_streaming);
     mu_run_test(test_even4);
     mu_run_test(test_empty);
     mu_run_test(test_nofile);

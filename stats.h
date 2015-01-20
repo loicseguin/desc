@@ -16,10 +16,11 @@ typedef struct dataset {
     bool has_q1;
     bool has_q3;
     bool has_minmax;
+    bool streaming;
 } dataset;
 
 dataset* create_dataset(double *array, size_t n);
-dataset* read_data_file(char *filename);
+dataset* read_data_file(char *filename, bool streaming);
 void delete_dataset(dataset *ds);
 double mean(dataset *ds);
 double var(dataset *ds);

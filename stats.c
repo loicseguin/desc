@@ -31,6 +31,7 @@ dataset* init_empty_dataset(size_t n)
     ds->has_q1 = false;
     ds->has_q3 = false;
     ds->has_minmax = false;
+    ds->streaming = false;
 
     return ds;
 
@@ -61,6 +62,25 @@ dataset* create_dataset(double *array, size_t n)
 
 error:
     return NULL;
+}
+
+void add_sample(dataset *ds, double sample)
+{
+    // Add a single data point to the dataset. Used in the streaming version of
+    // desc that does not keep track of the data, only of summary statistics.
+    if (ds->n > 0) {
+        if (sample < ds->min)
+            ds->min = sample;
+        else if (sample > ds->max)
+            ds->max = sample;
+    } else {
+        ds->min = sample;
+        ds->max = sample;
+    }
+    ds->has_minmax = true;
+    ds->n++;
+    ds->sum += sample;
+    ds->ss += sample * sample;
 }
 
 void delete_dataset(dataset *ds)
@@ -108,7 +128,7 @@ error:
     return (size_t)-1;
 }
 
-dataset* read_data_file(char *filename)
+dataset* read_data_file(char *filename, bool streaming)
 {
     dataset *ds = NULL;
     char buffer[MAX_LINELENGTH];
@@ -128,6 +148,8 @@ dataset* read_data_file(char *filename)
     // Start by creating an empty dataset of small size.
     ds = init_empty_dataset(BASE_DATA_SIZE);
     check_mem(ds);
+    if (streaming)
+        ds->streaming = true;
 
     while(fgets(buffer, MAX_LINELENGTH, fp) != NULL) {
         datum = strtod(buffer, &endptr);
@@ -142,25 +164,31 @@ dataset* read_data_file(char *filename)
             continue;
         }
 
-        if (n >= cur_data_size) {
+        if (!streaming && n >= cur_data_size) {
             // If the current dataset size if not big enough, try to grow.
             cur_data_size = _grow_data(&(ds->data), cur_data_size);
             check(cur_data_size != (size_t)-1, "Could not grow data.");
         }
 
-        ds->data[n] = datum;
-        ds->sum += datum;
-        ds->ss += datum * datum;
-        n++;
+        if (!streaming) {
+            ds->data[n] = datum;
+            ds->sum += datum;
+            ds->ss += datum * datum;
+            n++;
+        } else {
+            add_sample(ds, datum);
+        }
     }
 
     if (filename)
         fclose(fp);
 
     // Free the unused memory at the end of the data array.
-    ds->data = (double*)realloc(ds->data, n * sizeof(double));
-    check_mem(ds->data);
-    ds->n = n;
+    if (!streaming) {
+        ds->data = (double*)realloc(ds->data, n * sizeof(double));
+        check_mem(ds->data);
+        ds->n = n;
+    }
 
     return ds;
 
@@ -190,6 +218,7 @@ double median(dataset *ds)
     // Compute the median using selection. This could be done using the
     // percentile function, but here we only perform one select call for arrays
     // of odd length.
+    if (ds->streaming) return NAN;
     double high, low;
 
     high = _select(ds->data, ds->n, ds->n / 2);
@@ -205,6 +234,7 @@ double median(dataset *ds)
 double first_quartile(dataset *ds)
 {
     // Compute the first quartile using selection.
+    if (ds->streaming) return NAN;
     if (ds->has_q1)
         return ds->q1;
     ds->q1 = percentile(ds, 25.0);
@@ -216,6 +246,7 @@ double first_quartile(dataset *ds)
 double third_quartile(dataset *ds)
 {
     // Compute the third quartile using selection.
+    if (ds->streaming) return NAN;
     if (ds->has_q3)
         return ds->q3;
     ds->q3 = percentile(ds, 75.0);
@@ -231,6 +262,7 @@ double percentile(dataset *ds, double q)
     // Inspired by the implementation in Numpy
     // http://github.com/numpy/numpy/blob/v1.9.1/numpy/lib/function_base.py#L2947
 
+    if (ds->streaming) return NAN;
     check_debug(ds->n > 1, "Can't compute percentile dataset with less than 2 elements.");
     double index = q * (ds->n - 1) / 100.0;
     double weight_above, low, high;
@@ -258,6 +290,7 @@ double interquartile_range(dataset *ds)
 {
     // The interquartile range is the distance between the first and the third
     // quartiles.
+    if (ds->streaming) return NAN;
     return third_quartile(ds) - first_quartile(ds);
 }
 
