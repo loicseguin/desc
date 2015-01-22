@@ -15,16 +15,7 @@
 
 double _select(double *list, size_t n, size_t k);
 
-dataset* init_empty_dataset(size_t n)
-{
-    dataset *ds;
-
-    ds = (dataset*)malloc(sizeof(dataset));
-    check_mem(ds);
-
-    ds->data = (double*)malloc(n * sizeof(double));
-    check_mem(ds->data);
-
+void clear_dataset(dataset *ds) {
     ds->sum = 0;
     ds->ss = 0;
     ds->n = 0;
@@ -32,6 +23,21 @@ dataset* init_empty_dataset(size_t n)
     ds->has_q3 = false;
     ds->has_minmax = false;
     ds->streaming = false;
+    ds->M1 = 0;
+    ds->M2 = 0;
+    ds->M3 = 0;
+    ds->M4 = 0;
+}
+
+dataset* init_empty_dataset(size_t n)
+{
+    dataset *ds;
+
+    ds = (dataset*)calloc(1, sizeof(dataset));
+    check_mem(ds);
+
+    ds->data = (double*)calloc(n, sizeof(double));
+    check_mem(ds->data);
 
     return ds;
 

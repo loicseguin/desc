@@ -11,6 +11,10 @@ typedef struct dataset {
     double ss;
     double q1;
     double q3;
+    double M1;
+    double M2;
+    double M3;
+    double M4;
     double min;
     double max;
     bool has_q1;
