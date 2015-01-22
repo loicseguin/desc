@@ -13,10 +13,10 @@
 
 #define mu_assert(test, message) if (!(test)) { log_err(message); return message; }
 
-#define test_statistic(stat, i) mu_assert(check_answer(stat(ds), answer[i], EPSILON), \
+#define test_statistic(stat, i, tol) mu_assert(check_answer(stat(ds), answer[i], tol), \
                                           "failed to compute " #stat ".");
 
-#define test_dataset() char *msg = test_describe(ds, answer); \
+#define test_dataset(tol) char *msg = test_describe(ds, answer, tol); \
                        delete_dataset(ds); if (msg) return msg; return NULL;
 
 int tests_run = 0;
@@ -35,17 +35,17 @@ int check_answer(double computed, double answer, double tol)
     }
 }
 
-char *test_describe(dataset *ds, double *answer)
+char *test_describe(dataset *ds, double *answer, double tol)
 {
-    test_statistic(median, 0);
-    test_statistic(mean, 1);
-    test_statistic(var, 2);
-    test_statistic(sd, 3);
-    test_statistic(first_quartile, 4);
-    test_statistic(third_quartile, 5);
-    test_statistic(interquartile_range, 6);
-    test_statistic(min, 7);
-    test_statistic(max, 8);
+    test_statistic(median, 0, tol);
+    test_statistic(mean, 1, tol);
+    test_statistic(var, 2, tol);
+    test_statistic(sd, 3, tol);
+    test_statistic(first_quartile, 4, tol);
+    test_statistic(third_quartile, 5, tol);
+    test_statistic(interquartile_range, 6, tol);
+    test_statistic(min, 7, tol);
+    test_statistic(max, 8, tol);
     return NULL;
 }
 
@@ -57,7 +57,7 @@ char *test_odd1()
                         25.607878252042447, 2.72, 21.8, 19.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_odd2()
@@ -92,7 +92,7 @@ char *test_odd2()
                         0.47368239, 0.00700852, 0.9931002};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_odd3()
@@ -104,19 +104,19 @@ char *test_odd3()
                         0.28791916249993843, 0.25413486746800,
                         0.75404246086600, 0.499907593398,
                         0.00019540681109, 0.99961258962500};
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_odd3_streaming()
 {
     dataset *ds = read_data_file("data/odd.dat", true);
 
-    double answer[9] = {NAN,
+    double answer[9] = {0.50382482225561787,
                         0.50233294716282062, 0.082897444134665946,
-                        0.28791916249993843, NAN,
-                        NAN, NAN,
+                        0.28791916249993843, 0.25413486746800,
+                        0.75404246086600, 0.499907593398,
                         0.00019540681109, 0.99961258962500};
-    test_dataset();
+    test_dataset(1e-2);
 }
 
 char *test_odd4()
@@ -127,7 +127,7 @@ char *test_odd4()
                         25.607878252042447, 2.72, 21.8, 19.08, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_odd5()
@@ -138,7 +138,7 @@ char *test_odd5()
                         25.5, 42.5, 17.0, 6.0, 49.0};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_even1()
@@ -149,7 +149,7 @@ char *test_even1()
                         24.126734282593183, 3.03, 15.6, 12.57, -6.5, 67.5};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_even2()
@@ -183,7 +183,7 @@ char *test_even2()
                         0.0179069300, 0.9862653100};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_even3()
@@ -194,18 +194,18 @@ char *test_even3()
                         0.49535067041, 0.00007428522194, 0.99986769224100};
 
     dataset *ds = read_data_file("data/even.dat", false);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_even3_streaming()
 {
-    double answer[9] = {NAN,
+    double answer[9] = {0.50056922106177648,
                         0.50006327290531249, 0.08331229878740451,
-                        0.28863869939321113, NAN, NAN,
-                        NAN, 0.00007428522194, 0.99986769224100};
+                        0.28863869939321113, 0.25445019760600, 0.74980086801600,
+                        0.49535067041, 0.00007428522194, 0.99986769224100};
 
     dataset *ds = read_data_file("data/even.dat", true);
-    test_dataset();
+    test_dataset(1e-2);
 }
 
 char *test_even4()
@@ -216,7 +216,7 @@ char *test_even4()
                         14.773850773128402, 20.25, 39.75, 19.5, 7.0, 41.0};
 
     dataset *ds = create_dataset(data, n);
-    test_dataset();
+    test_dataset(EPSILON);
 }
 
 char *test_empty()
