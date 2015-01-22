@@ -18,13 +18,10 @@ double _select(double *list, size_t n, size_t k);
 
 void clear(dataset *ds)
 {
-    ds->sum = 0;
-    ds->ss = 0;
     ds->n = 0;
     ds->data_size = 0;
     ds->has_q1 = false;
     ds->has_q3 = false;
-    ds->has_minmax = false;
     ds->streaming = false;
     ds->M1 = 0;
     ds->M2 = 0;
@@ -54,7 +51,6 @@ int push(dataset *ds, double datum)
         ds->min = datum;
         ds->max = datum;
     }
-    ds->has_minmax = true;
 
     ds->n += 1;
 
@@ -310,51 +306,15 @@ double interquartile_range(dataset *ds)
     return third_quartile(ds) - first_quartile(ds);
 }
 
-void _minmax(dataset *ds)
-{
-    // Find the max and the min in one pass.
-    check_debug(ds->n > 0, "Can't compute minimum/maximum of empty dataset.");
-    double _min = ds->data[0];
-    double _max = ds->data[0];
-    size_t i, n = ds->n;
-    double *data = ds->data;
-
-    for (i = 0; i < n; i++) {
-        if (data[i] < _min)
-            _min = data[i];
-        else if (data[i] > _max)
-            _max = data[i];
-    }
-    ds->min = _min;
-    ds->max = _max;
-    ds->has_minmax = true;
-    return;
-
-error:
-#ifdef NAN
-    ds->min = NAN;
-    ds->max = NAN;
-#else
-    ds->min = 0;
-    ds->max = 0;
-#endif
-    ds->has_minmax = true;
-    return;
-}
-
 double min(dataset *ds)
 {
     // Find the minimum in the array.
-    if (!ds->has_minmax)
-        _minmax(ds);
     return ds->min;
 }
 
 double max(dataset *ds)
 {
     // Find the maximum in the array.
-    if (!ds->has_minmax)
-        _minmax(ds);
     return ds->max;
 }
 

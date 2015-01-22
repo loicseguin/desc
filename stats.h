@@ -8,8 +8,6 @@ typedef struct dataset {
     double *data;
     size_t data_size;
     size_t n;
-    double sum;
-    double ss;
     double q1;
     double q3;
     double M1;
@@ -18,7 +16,6 @@ typedef struct dataset {
     double max;
     bool has_q1;
     bool has_q3;
-    bool has_minmax;
     bool streaming;
 } dataset;
 
