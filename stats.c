@@ -13,20 +13,62 @@
 
 #define SWAP(a, b) tmp=(a); a=(b); (b)=tmp;
 
+size_t _grow_data(double **data, size_t n);
 double _select(double *list, size_t n, size_t k);
 
-void clear_dataset(dataset *ds) {
+void clear(dataset *ds)
+{
     ds->sum = 0;
     ds->ss = 0;
     ds->n = 0;
+    ds->data_size = 0;
     ds->has_q1 = false;
     ds->has_q3 = false;
     ds->has_minmax = false;
     ds->streaming = false;
     ds->M1 = 0;
     ds->M2 = 0;
-    ds->M3 = 0;
-    ds->M4 = 0;
+}
+
+int push(dataset *ds, double datum)
+{
+    // Add a single data point to the dataset.
+    double delta, delta_n;
+
+    // Check if space is sufficient. If not, grow.
+    if (!ds->streaming) {
+        if (ds->n >= ds->data_size) {
+            ds->data_size = _grow_data(&(ds->data), ds->data_size);
+            check(ds->data_size != (size_t)-1, "Could not grow data.");
+        }
+        ds->data[ds->n] = datum;
+    }
+
+    // Check for minimum and maximum.
+    if (ds->n > 0) {
+        if (datum < ds->min)
+            ds->min = datum;
+        else if (datum > ds->max)
+            ds->max = datum;
+    } else {
+        ds->min = datum;
+        ds->max = datum;
+    }
+    ds->has_minmax = true;
+
+    ds->n += 1;
+
+    // Update running stats using the method in
+    // http://www.johndcook.com/blog/skewness_kurtosis/
+    delta = datum - ds->M1;
+    delta_n = delta / ds->n;
+    ds->M1 += delta_n;
+    ds->M2 += delta * delta_n * (ds->n - 1);
+
+    return 1;
+
+error:
+    return 0;
 }
 
 dataset* init_empty_dataset(size_t n)
@@ -38,6 +80,7 @@ dataset* init_empty_dataset(size_t n)
 
     ds->data = (double*)calloc(n, sizeof(double));
     check_mem(ds->data);
+    ds->data_size = n;
 
     return ds;
 
@@ -58,35 +101,16 @@ dataset* create_dataset(double *array, size_t n)
     check(ds, "Failed to create dataset.");
 
     for (i = 0; i < n; i++) {
-        ds->data[i] = array[i];
-        ds->sum += array[i];
-        ds->ss += array[i] * array[i];
+        check(push(ds, array[i]) == 1, "Failed to add a data point.");
     }
-    ds->n = n;
 
     return ds;
 
 error:
-    return NULL;
-}
-
-void add_sample(dataset *ds, double sample)
-{
-    // Add a single data point to the dataset. Used in the streaming version of
-    // desc that does not keep track of the data, only of summary statistics.
-    if (ds->n > 0) {
-        if (sample < ds->min)
-            ds->min = sample;
-        else if (sample > ds->max)
-            ds->max = sample;
-    } else {
-        ds->min = sample;
-        ds->max = sample;
+    if (ds) {
+        delete_dataset(ds);
     }
-    ds->has_minmax = true;
-    ds->n++;
-    ds->sum += sample;
-    ds->ss += sample * sample;
+    return NULL;
 }
 
 void delete_dataset(dataset *ds)
@@ -139,7 +163,6 @@ dataset* read_data_file(char *filename, bool streaming)
     dataset *ds = NULL;
     char buffer[MAX_LINELENGTH];
     double datum;
-    size_t n = 0, cur_data_size = BASE_DATA_SIZE;
     FILE *fp;
     char *endptr;
 
@@ -170,20 +193,7 @@ dataset* read_data_file(char *filename, bool streaming)
             continue;
         }
 
-        if (!streaming && n >= cur_data_size) {
-            // If the current dataset size if not big enough, try to grow.
-            cur_data_size = _grow_data(&(ds->data), cur_data_size);
-            check(cur_data_size != (size_t)-1, "Could not grow data.");
-        }
-
-        if (!streaming) {
-            ds->data[n] = datum;
-            ds->sum += datum;
-            ds->ss += datum * datum;
-            n++;
-        } else {
-            add_sample(ds, datum);
-        }
+        push(ds, datum);
     }
 
     if (filename)
@@ -191,9 +201,9 @@ dataset* read_data_file(char *filename, bool streaming)
 
     // Free the unused memory at the end of the data array.
     if (!streaming) {
-        ds->data = (double*)realloc(ds->data, n * sizeof(double));
+        ds->data = (double*)realloc(ds->data, ds->n * sizeof(double));
         check_mem(ds->data);
-        ds->n = n;
+        ds->data_size = ds->n;
     }
 
     return ds;
@@ -206,12 +216,12 @@ error:
 
 double mean(dataset *ds)
 {
-    return ds->sum / ds->n;
+    return ds->M1;
 }
 
 double var(dataset *ds)
 {
-    return (ds->ss - ds->sum * ds->sum / ds->n) / (ds->n - 1);
+    return ds->M2 / (ds->n - 1.0);
 }
 
 double sd(dataset *ds)

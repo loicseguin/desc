@@ -6,6 +6,7 @@
 
 typedef struct dataset {
     double *data;
+    size_t data_size;
     size_t n;
     double sum;
     double ss;
@@ -13,8 +14,6 @@ typedef struct dataset {
     double q3;
     double M1;
     double M2;
-    double M3;
-    double M4;
     double min;
     double max;
     bool has_q1;
