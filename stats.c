@@ -10,27 +10,83 @@
 #define MAX_LINELENGTH 100
 #define BASE_DATA_SIZE 32
 #define MICROSECS_PER_SEC 1000000
+#define STREAM_SAMPLE_SIZE 3000
 
 #define SWAP(a, b) tmp=(a); a=(b); (b)=tmp;
 
+size_t _grow_data(double **data, size_t n);
 double _select(double *list, size_t n, size_t k);
+
+void clear(dataset *ds)
+{
+    ds->n = 0;
+    ds->data_size = 0;
+    ds->isample = 0;
+    ds->has_q1 = false;
+    ds->has_q3 = false;
+    ds->streaming = false;
+    ds->M1 = 0;
+    ds->M2 = 0;
+}
+
+int push(dataset *ds, double datum)
+{
+    // Add a single data point to the dataset.
+    double delta, delta_n;
+
+    // Check if space is sufficient. If not, grow.
+    if (ds->streaming) {
+        if (ds->isample < STREAM_SAMPLE_SIZE) {
+            ds->data[ds->isample % STREAM_SAMPLE_SIZE] = datum;
+            ds->isample++;
+        } else if (arc4random() % 2) {
+            ds->data[ds->isample % STREAM_SAMPLE_SIZE] = datum;
+            ds->isample++;
+        }
+    } else {
+        if (ds->n >= ds->data_size) {
+            ds->data_size = _grow_data(&(ds->data), ds->data_size);
+            check(ds->data_size != (size_t)-1, "Could not grow data.");
+        }
+        ds->data[ds->n] = datum;
+    }
+
+    // Check for minimum and maximum.
+    if (ds->n > 0) {
+        if (datum < ds->min)
+            ds->min = datum;
+        else if (datum > ds->max)
+            ds->max = datum;
+    } else {
+        ds->min = datum;
+        ds->max = datum;
+    }
+
+    ds->n += 1;
+
+    // Update running stats using the method in
+    // http://www.johndcook.com/blog/skewness_kurtosis/
+    delta = datum - ds->M1;
+    delta_n = delta / ds->n;
+    ds->M1 += delta_n;
+    ds->M2 += delta * delta_n * (ds->n - 1);
+
+    return 1;
+
+error:
+    return 0;
+}
 
 dataset* init_empty_dataset(size_t n)
 {
     dataset *ds;
 
-    ds = (dataset*)malloc(sizeof(dataset));
+    ds = (dataset*)calloc(1, sizeof(dataset));
     check_mem(ds);
 
-    ds->data = (double*)malloc(n * sizeof(double));
+    ds->data = (double*)calloc(n, sizeof(double));
     check_mem(ds->data);
-
-    ds->sum = 0;
-    ds->ss = 0;
-    ds->n = n;
-    ds->has_q1 = false;
-    ds->has_q3 = false;
-    ds->has_minmax = false;
+    ds->data_size = n;
 
     return ds;
 
@@ -51,14 +107,15 @@ dataset* create_dataset(double *array, size_t n)
     check(ds, "Failed to create dataset.");
 
     for (i = 0; i < n; i++) {
-        ds->data[i] = array[i];
-        ds->sum += array[i];
-        ds->ss += array[i] * array[i];
+        check(push(ds, array[i]) == 1, "Failed to add a data point.");
     }
 
     return ds;
 
 error:
+    if (ds) {
+        delete_dataset(ds);
+    }
     return NULL;
 }
 
@@ -107,12 +164,11 @@ error:
     return (size_t)-1;
 }
 
-dataset* read_data_file(char *filename)
+dataset* read_data_file(char *filename, bool streaming)
 {
     dataset *ds = NULL;
     char buffer[MAX_LINELENGTH];
     double datum;
-    size_t n = 0, cur_data_size = BASE_DATA_SIZE;
     FILE *fp;
     char *endptr;
 
@@ -125,7 +181,12 @@ dataset* read_data_file(char *filename)
     }
 
     // Start by creating an empty dataset of small size.
-    ds = init_empty_dataset(BASE_DATA_SIZE);
+    if (streaming) {
+        ds = init_empty_dataset(STREAM_SAMPLE_SIZE);
+        ds->streaming = true;
+    } else {
+        ds = init_empty_dataset(BASE_DATA_SIZE);
+    }
     check_mem(ds);
 
     while(fgets(buffer, MAX_LINELENGTH, fp) != NULL) {
@@ -141,25 +202,17 @@ dataset* read_data_file(char *filename)
             continue;
         }
 
-        if (n >= cur_data_size) {
-            // If the current dataset size if not big enough, try to grow.
-            cur_data_size = _grow_data(&(ds->data), cur_data_size);
-            check(cur_data_size != (size_t)-1, "Could not grow data.");
-        }
-
-        ds->data[n] = datum;
-        ds->sum += datum;
-        ds->ss += datum * datum;
-        n++;
+        push(ds, datum);
     }
 
     if (filename)
         fclose(fp);
 
     // Free the unused memory at the end of the data array.
-    ds->data = (double*)realloc(ds->data, n * sizeof(double));
+    size_t real_data_size = ds->n > ds->data_size ? ds->data_size : ds->n;
+    ds->data = (double*)realloc(ds->data, real_data_size * sizeof(double));
     check_mem(ds->data);
-    ds->n = n;
+    ds->data_size = real_data_size;
 
     return ds;
 
@@ -171,12 +224,12 @@ error:
 
 double mean(dataset *ds)
 {
-    return ds->sum / ds->n;
+    return ds->M1;
 }
 
 double var(dataset *ds)
 {
-    return (ds->ss - ds->sum * ds->sum / ds->n) / (ds->n - 1);
+    return ds->M2 / (ds->n - 1.0);
 }
 
 double sd(dataset *ds)
@@ -190,11 +243,12 @@ double median(dataset *ds)
     // percentile function, but here we only perform one select call for arrays
     // of odd length.
     double high, low;
+    size_t data_size = ds->data_size;
 
-    high = _select(ds->data, ds->n, ds->n / 2);
-    if (ds->n % 2 == 0) {
+    high = _select(ds->data, data_size, data_size / 2);
+    if (data_size % 2 == 0) {
         // Use slightly convoluted formula to avoid overflow.
-        low = _select(ds->data, ds->n, ds->n / 2 - 1);
+        low = _select(ds->data, data_size, data_size / 2 - 1);
         return low + 0.5 * (high - low);
     } else {
         return high;
@@ -230,19 +284,20 @@ double percentile(dataset *ds, double q)
     // Inspired by the implementation in Numpy
     // http://github.com/numpy/numpy/blob/v1.9.1/numpy/lib/function_base.py#L2947
 
-    check_debug(ds->n > 1, "Can't compute percentile dataset with less than 2 elements.");
-    double index = q * (ds->n - 1) / 100.0;
+    size_t data_size = ds->data_size;
+    check_debug(data_size > 1, "Can't compute percentile dataset with less than 2 elements.");
+    double index = q * (data_size - 1) / 100.0;
     double weight_above, low, high;
     size_t index_below = (size_t)index;
     size_t index_above = index_below + 1;
 
-    if (index_above > ds->n - 1) {
-        index_above = ds->n - 1;
+    if (index_above > data_size - 1) {
+        index_above = data_size - 1;
     }
 
     weight_above = index - index_below;
-    low = _select(ds->data, ds->n, index_below);
-    high = _select(ds->data, ds->n, index_above);
+    low = _select(ds->data, data_size, index_below);
+    high = _select(ds->data, data_size, index_above);
     return low * (1 - weight_above) + high * weight_above;
 
 error:
@@ -260,51 +315,15 @@ double interquartile_range(dataset *ds)
     return third_quartile(ds) - first_quartile(ds);
 }
 
-void _minmax(dataset *ds)
-{
-    // Find the max and the min in one pass.
-    check_debug(ds->n > 0, "Can't compute minimum/maximum of empty dataset.");
-    double _min = ds->data[0];
-    double _max = ds->data[0];
-    size_t i, n = ds->n;
-    double *data = ds->data;
-
-    for (i = 0; i < n; i++) {
-        if (data[i] < _min)
-            _min = data[i];
-        else if (data[i] > _max)
-            _max = data[i];
-    }
-    ds->min = _min;
-    ds->max = _max;
-    ds->has_minmax = true;
-    return;
-
-error:
-#ifdef NAN
-    ds->min = NAN;
-    ds->max = NAN;
-#else
-    ds->min = 0;
-    ds->max = 0;
-#endif
-    ds->has_minmax = true;
-    return;
-}
-
 double min(dataset *ds)
 {
     // Find the minimum in the array.
-    if (!ds->has_minmax)
-        _minmax(ds);
     return ds->min;
 }
 
 double max(dataset *ds)
 {
     // Find the maximum in the array.
-    if (!ds->has_minmax)
-        _minmax(ds);
     return ds->max;
 }
 

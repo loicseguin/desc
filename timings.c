@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 {
     dataset *ds;
 
-    ds = read_data_file(argv[1]);
+    ds = read_data_file(argv[1], false);
     check(ds, "Could not read dataset.");
     if (ds->n < 2)
         log_warn("\n------ Less than two values in dataset: "

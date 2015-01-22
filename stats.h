@@ -6,20 +6,22 @@
 
 typedef struct dataset {
     double *data;
+    size_t data_size;
     size_t n;
-    double sum;
-    double ss;
+    size_t isample;
     double q1;
     double q3;
+    double M1;
+    double M2;
     double min;
     double max;
     bool has_q1;
     bool has_q3;
-    bool has_minmax;
+    bool streaming;
 } dataset;
 
 dataset* create_dataset(double *array, size_t n);
-dataset* read_data_file(char *filename);
+dataset* read_data_file(char *filename, bool streaming);
 void delete_dataset(dataset *ds);
 double mean(dataset *ds);
 double var(dataset *ds);

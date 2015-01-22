@@ -9,9 +9,13 @@ median, third quartile, variance, interquartile range, standard deviation, min,
 max) for a given data set. It can get its input from a file or standard input,
 which means it composes well with other utilities.
 
-**desc** is designed to be *fast* and to handle large datasets easily. As long
-as your data fits into memory, **desc** will return its results before you know
-it.
+**desc** is designed to be *fast* and to handle large datasets easily. Whatever
+the size of your dataset, **desc** can quickly compute the results.
+
+By default, **desc** computes exact statistics by considering the whole
+dataset. If the dataset is too large to fit into memory or approximate
+statistics are sufficient, **desc** can be executed in *streaming* mode, which
+means the data will not be stored in memory.
 
 ## Installing
 
@@ -79,12 +83,36 @@ A more interesting example is to compute statistics on the length of `.c` and
 
 The above command runs in less than 1.5 second on a 2011 Macbook Pro.
 
+To run **desc** in *streaming* mode, just add the command line option `-s`.
+With this option turned on, the dataset is not stored into memory. Summary
+statistics are computed in one pass on the data. This options allows to work
+with very large datasets. Moreover, running time scales linearly with the size
+of the input. The caveat is that the percentiles (first quartile, median, third
+quartile) are approximated by sampling the data. The following is an example
+using a 2.3 GB dataset.
+
+    $ time ./desc -s data/very_large.dat
+    count     100000000
+    min       2.2054e-06
+    Q1        24.418
+    mean      49.998
+    median    48.516
+    Q3        73.812
+    max       100
+    IQR       49.395
+    var       833.34
+    sd        28.868
+    ./desc -s data/very_large.dat  28,48s user 1,03s system 99% cpu 29,614 total
+
+The whole process takes less than 55 KB of memory.
+
 ## Features/Limitations
 
   - Silently ignores missing/invalid values.
   - Uses only the first whitespace-separated token on each line of input, the
     rest of the line is ignored.
-  - Only one command line option: `-h` to print a short help message.
+  - Get help: `-h` to print a short help message.
+  - Run in streaming mode with command line option `-s`
 
 ## Benchmark
 

@@ -10,7 +10,7 @@ DEPS=$(SRC:.c=.d)
 
 TARGET=desc
 TIMINGSEXEC=timings
-TESTSEXEC=test
+TESTEXEC=test
 
 all: $(TARGET) $(TESTEXEC) $(TIMINGSEXEC)
 
@@ -21,13 +21,13 @@ $(TARGET): $(OBJS) desc.o
 
 $(TIMINGSEXEC): $(OBJS) timings.o
 
-$(TESTSEXEC): $(OBJS) test.o
+$(TESTEXEC): $(OBJS) test.o
 
 -include $(DEPS)
 
 .PHONY: tests
-tests: $(TESTSEXEC)
-	./$(TESTSEXEC)
+tests: $(TESTEXEC)
+	./$(TESTEXEC)
 
 clean:
 	rm -rf *.o $(TESTSEXEC) $(TARGET) $(TIMINGSEXEC)
