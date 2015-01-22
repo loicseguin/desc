@@ -219,6 +219,23 @@ char *test_even4()
     test_dataset(EPSILON);
 }
 
+char *test_small_streaming()
+{
+    double answer[9] = {49.080551821884,  // median
+                        47.27102612042 ,  // mean
+                        823.12519278139,  // var
+                        28.690158465603,  // sd
+                        22.0141822990,    // first_quartile
+                        69.3273725100,    // third_quartile
+                        47.313190210849,  // interquartile_range
+                        6.5767552732,     // min
+                        88.1707378980     // max
+                        };
+
+    dataset *ds = read_data_file("data/small.dat", true);
+    test_dataset(EPSILON);
+}
+
 char *test_empty()
 {
     double data[0] = {};
@@ -265,6 +282,7 @@ char *all_tests()
     mu_run_test(test_even4);
     mu_run_test(test_empty);
     mu_run_test(test_nofile);
+    mu_run_test(test_small_streaming);
 
     return NULL;
 }

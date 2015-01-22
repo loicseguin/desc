@@ -209,11 +209,10 @@ dataset* read_data_file(char *filename, bool streaming)
         fclose(fp);
 
     // Free the unused memory at the end of the data array.
-    if (!streaming) {
-        ds->data = (double*)realloc(ds->data, ds->n * sizeof(double));
-        check_mem(ds->data);
-        ds->data_size = ds->n;
-    }
+    size_t real_data_size = ds->n > ds->data_size ? ds->data_size : ds->n;
+    ds->data = (double*)realloc(ds->data, real_data_size * sizeof(double));
+    check_mem(ds->data);
+    ds->data_size = real_data_size;
 
     return ds;
 
