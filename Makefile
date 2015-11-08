@@ -3,7 +3,7 @@ PREFIX?=/usr/local
 
 SOURCES=$(wildcard *.c)
 
-SRC=stats.c
+SRC=tdigest.c stats.c
 
 OBJS=$(SRC:.c=.o)
 DEPS=$(SRC:.c=.d)

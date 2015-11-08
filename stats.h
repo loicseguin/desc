@@ -3,12 +3,13 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include "tdigest.h"
 
 typedef struct dataset {
     double *data;
+    TDigest *digest;
     size_t data_size;
     size_t n;
-    size_t isample;
     double q1;
     double q3;
     double M1;

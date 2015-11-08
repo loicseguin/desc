@@ -2,6 +2,32 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "tdigest.h"
+#include "queue.h"
+#include "tree.h"
+
+LIST_HEAD(CentroidList, Centroid);
+
+typedef struct Centroid {
+    RB_ENTRY(Centroid) entry;
+    LIST_ENTRY(Centroid) lentry;
+    double mean;
+    size_t count;
+} Centroid;
+
+int centroidcmp(Centroid *c1, Centroid *c2);
+
+RB_HEAD(CentroidTree, Centroid);
+
+typedef struct TDigest {
+    struct CentroidTree *C;
+    size_t count;
+    size_t ncentroids;
+    double delta;
+    unsigned int K;
+} TDigest;
+
+RB_PROTOTYPE(CentroidTree, Centroid, entry, centroidcmp)
+RB_GENERATE(CentroidTree, Centroid, entry, centroidcmp)
 
 int centroidcmp(Centroid *c1, Centroid *c2)
 {

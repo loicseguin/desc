@@ -10,7 +10,6 @@
 #define MAX_LINELENGTH 100
 #define BASE_DATA_SIZE 32
 #define MICROSECS_PER_SEC 1000000
-#define STREAM_SAMPLE_SIZE 3000
 
 #define SWAP(a, b) tmp=(a); a=(b); (b)=tmp;
 
@@ -21,7 +20,6 @@ void clear(dataset *ds)
 {
     ds->n = 0;
     ds->data_size = 0;
-    ds->isample = 0;
     ds->has_q1 = false;
     ds->has_q3 = false;
     ds->streaming = false;
@@ -36,13 +34,7 @@ int push(dataset *ds, double datum)
 
     // Check if space is sufficient. If not, grow.
     if (ds->streaming) {
-        if (ds->isample < STREAM_SAMPLE_SIZE) {
-            ds->data[ds->isample % STREAM_SAMPLE_SIZE] = datum;
-            ds->isample++;
-        } else if (arc4random() % 2) {
-            ds->data[ds->isample % STREAM_SAMPLE_SIZE] = datum;
-            ds->isample++;
-        }
+        TDigest_add(ds->digest, datum, 1);
     } else {
         if (ds->n >= ds->data_size) {
             ds->data_size = _grow_data(&(ds->data), ds->data_size);
@@ -182,7 +174,8 @@ dataset* read_data_file(char *filename, bool streaming)
 
     // Start by creating an empty dataset of small size.
     if (streaming) {
-        ds = init_empty_dataset(STREAM_SAMPLE_SIZE);
+        ds = init_empty_dataset(1);
+        ds->digest = TDigest_create();
         ds->streaming = true;
     } else {
         ds = init_empty_dataset(BASE_DATA_SIZE);
@@ -242,6 +235,8 @@ double median(dataset *ds)
     // Compute the median using selection. This could be done using the
     // percentile function, but here we only perform one select call for arrays
     // of odd length.
+    if (ds->streaming)
+        return TDigest_percentile(ds->digest, 0.5);
     double high, low;
     size_t data_size = ds->data_size;
 
@@ -258,6 +253,8 @@ double median(dataset *ds)
 double first_quartile(dataset *ds)
 {
     // Compute the first quartile using selection.
+    if (ds->streaming)
+        return TDigest_percentile(ds->digest, 0.25);
     if (ds->has_q1)
         return ds->q1;
     ds->q1 = percentile(ds, 25.0);
@@ -269,6 +266,8 @@ double first_quartile(dataset *ds)
 double third_quartile(dataset *ds)
 {
     // Compute the third quartile using selection.
+    if (ds->streaming)
+        return TDigest_percentile(ds->digest, 0.75);
     if (ds->has_q3)
         return ds->q3;
     ds->q3 = percentile(ds, 75.0);
@@ -283,7 +282,8 @@ double percentile(dataset *ds, double q)
     //
     // Inspired by the implementation in Numpy
     // http://github.com/numpy/numpy/blob/v1.9.1/numpy/lib/function_base.py#L2947
-
+    if (ds->streaming)
+        return TDigest_percentile(ds->digest, q / 100.0);
     size_t data_size = ds->data_size;
     check_debug(data_size > 1, "Can't compute percentile dataset with less than 2 elements.");
     double index = q * (data_size - 1) / 100.0;
