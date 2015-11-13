@@ -34,7 +34,7 @@ int push(dataset *ds, double datum)
 
     // Check if space is sufficient. If not, grow.
     if (ds->streaming) {
-        TDigest_add(ds->digest, datum, 1);
+        TDigest_add(ds->digest, datum, 1, ds->n + 1);
     } else {
         if (ds->n >= ds->data_size) {
             ds->data_size = _grow_data(&(ds->data), ds->data_size);

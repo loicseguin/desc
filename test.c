@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include "tdigest.h"
 #include "dbg.h"
 #include "stats.h"
 
@@ -258,6 +259,41 @@ char *test_empty()
     return NULL;
 }
 
+char *test_centroid()
+{
+    Centroid *c = Centroid_create(4.5, 3);
+    Centroid_add(c, -9.8, 8);
+    mu_assert(check_answer(Centroid_get_mean(c), -5.9, EPSILON), "Incorrect centroid mean");
+    mu_assert(Centroid_get_count(c) == 11, "Incorrect centroid count");
+    free(c);
+    return NULL;
+}
+
+char *test_create_destroy_tdigest()
+{
+    TDigest *t = TDigest_create();
+    TDigest_destroy(t);
+    return NULL;
+}
+
+char *test_tdigest_add()
+{
+    int i, nx = 7;
+    double x[7] = {5.4, -3.2, 2.0, 2.5, 2.7, 9.8, -5.6};
+    double xsorted[7] = {-5.6, -3.2, 2.0, 2.5, 2.7, 5.4, 9.8};
+    TDigest *t = TDigest_create();
+    for (i = 0; i < nx; i++)
+        TDigest_add(t, x[i], 1, i + 1);
+    size_t j, ncentroids = TDigest_get_ncentroids(t);
+    Centroid *c;
+    for (j = 0; j < ncentroids; j++) {
+        c = TDigest_get_centroid(t, j);
+        mu_assert(Centroid_get_count(c) == 1, "Incorrect centroid count");
+        mu_assert(check_answer(Centroid_get_mean(c), xsorted[j], EPSILON), "Incorrect centroid mean");
+    }
+    return NULL;
+}
+
 char *test_nofile()
 {
     dataset *ds = read_data_file("imnotthere.dat", false);
@@ -272,17 +308,20 @@ char *all_tests()
     mu_run_test(test_odd1);
     mu_run_test(test_odd2);
     mu_run_test(test_odd3);
-    mu_run_test(test_odd3_streaming);
+    /*mu_run_test(test_odd3_streaming);*/
     mu_run_test(test_odd4);
     mu_run_test(test_odd5);
     mu_run_test(test_even1);
     mu_run_test(test_even2);
     mu_run_test(test_even3);
-    mu_run_test(test_even3_streaming);
+    /*mu_run_test(test_even3_streaming);*/
     mu_run_test(test_even4);
     mu_run_test(test_empty);
     mu_run_test(test_nofile);
-    mu_run_test(test_small_streaming);
+    /*mu_run_test(test_small_streaming);*/
+    mu_run_test(test_centroid);
+    mu_run_test(test_create_destroy_tdigest);
+    mu_run_test(test_tdigest_add);
 
     return NULL;
 }
