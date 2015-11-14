@@ -38,7 +38,8 @@ int main(int argc, char *argv[])
     if (ds->n < 2)
         log_warn("\n------ Less than two values in dataset: "
                  "most results will be wrong.");
-    timings(ds, argv[1]);
+    if (argc > 1)
+        timings(ds, argv[1]);
     delete_dataset(ds);
 
     return 0;

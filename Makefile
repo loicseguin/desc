@@ -32,6 +32,7 @@ tests: $(TESTEXEC)
 clean:
 	rm -rf *.o $(TESTSEXEC) $(TARGET) $(TIMINGSEXEC)
 	rm -rf *.dSYM
+	rm -rf *.plist
 
 install: all
 	install -d $(PREFIX)/bin/

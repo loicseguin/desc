@@ -34,7 +34,7 @@ int push(dataset *ds, double datum)
 
     // Check if space is sufficient. If not, grow.
     if (ds->streaming) {
-        TDigest_add(ds->digest, datum, 1, ds->n + 1);
+        TDigest_add(&(ds->digest), datum, 1);
     } else {
         if (ds->n >= ds->data_size) {
             ds->data_size = _grow_data(&(ds->data), ds->data_size);
@@ -114,6 +114,9 @@ error:
 void delete_dataset(dataset *ds)
 {
     check(ds, "Can't delete non existent dataset.");
+    if (ds->streaming) {
+        TDigest_destroy(ds->digest);
+    }
     free(ds->data);
     free(ds);
 
@@ -175,7 +178,7 @@ dataset* read_data_file(char *filename, bool streaming)
     // Start by creating an empty dataset of small size.
     if (streaming) {
         ds = init_empty_dataset(1);
-        ds->digest = TDigest_create();
+        ds->digest = TDigest_create(DEFAULT_DELTA, DEFAULT_K);
         ds->streaming = true;
     } else {
         ds = init_empty_dataset(BASE_DATA_SIZE);

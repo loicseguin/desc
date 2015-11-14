@@ -1,13 +1,20 @@
+/*
+ * This is an implementation of the t-digest algorithm by Ted Dunning and Otmar
+ * Ertl. The algorithm is detailed in https://github.com/tdunning/t-digest/blob/master/docs/t-digest-paper/histo.pdf
+ * and a reference implementation in Java is available at https://github.com/tdunning/t-digest.
+ *
+ * The current implementation has also been inspired by the work of Cam
+ * Davidson-Pilon: https://github.com/CamDavidsonPilon/tdigest.
+ */
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include "tdigest.h"
-#include "queue.h"
 #include "tree.h"
 
 struct Centroid {
     RB_ENTRY(Centroid) entry;
-    LIST_ENTRY(Centroid) lentry;
     double mean;
     size_t count;
 };
@@ -25,16 +32,14 @@ struct TDigest {
     unsigned int K;
 };
 
-LIST_HEAD(CentroidList, Centroid);
-
 RB_GENERATE(CentroidTree, Centroid, entry, centroidcmp)
 
-TDigest* TDigest_create(void)
+TDigest* TDigest_create(double delta, unsigned int K)
 {
     TDigest *digest = calloc(1, sizeof(TDigest));
     RB_INIT(&(digest->C));
-    digest->delta = 0.01;
-    digest->K = 10;
+    digest->delta = delta;
+    digest->K = K;
     digest->count = 0;
     digest->ncentroids = 0;
     return digest;
@@ -52,130 +57,108 @@ void TDigest_destroy(TDigest* digest)
     free(digest);
 }
 
-void TDigest_add(TDigest *digest, double x, size_t w, size_t n)
+void TDigest_add(TDigest **digest, double x, size_t w)
 {
-    digest->count += w;
-    struct CentroidList closests;
-    LIST_INIT(&closests);
-    int nclose = TDigest_find_closest_centroids(digest, x, &closests);
-    size_t delta_w;
     Centroid *cj;
+    cj = TDigest_find_closest_centroid(*digest, x, w);
 
-    while (!LIST_EMPTY(&closests) && w > 0) {
-        // Select a centroid uniformly at random from the list.
-        int i, j = arc4random_uniform(nclose);
-        cj = LIST_FIRST(&closests);
-        for (i = 0; i < j; i++) {
-            cj = LIST_NEXT(cj, lentry);
-        }
-        double qcj = Centroid_quantile(cj, digest);
-        double threshold = 4 * digest->count * digest->delta * qcj * (1 - qcj);
-
-        if (cj->count + w <= threshold) {
-            // Add the data point to the selected centroid.
-            delta_w = w;
-            Centroid_add(cj, x, delta_w);
-            w -= delta_w;
-        }
-        LIST_REMOVE(cj, lentry);
-        nclose--;
-    }
-
-    if (w > 0) {
+    if (cj != NULL) {
+        // Add the data point to the selected centroid.
+        Centroid_add(cj, x, w);
+    } else {
         Centroid *c = Centroid_create(x, w);
-        RB_INSERT(CentroidTree, &(digest->C), c);
-        (digest->ncentroids)++;
+        RB_INSERT(CentroidTree, &((*digest)->C), c);
+        ((*digest)->ncentroids)++;
     }
 
-    // Empty and free the list. However, do not free the centroids, they are
-    // still needed.
-    while (!LIST_EMPTY(&closests)) {
-        LIST_REMOVE(LIST_FIRST(&closests), lentry);
-    }
+    (*digest)->count += w;
 
-    if (digest->ncentroids > digest->K / digest->delta) {
+    if ((*digest)->ncentroids > (*digest)->K / (*digest)->delta) {
         TDigest_compress(digest);
     }
 }
 
-int TDigest_find_closest_centroids(TDigest *digest, double x, struct CentroidList *closests)
+Centroid *TDigest_find_closest_centroid(TDigest *digest, double x, size_t w)
 {
     // Find all the centroids whose mean is the closest to x. Return the number
     // of centroids that are closest to x.
-    int nclose = 0;
     if (digest->ncentroids == 0) {
-        return 0;
+        return NULL;
     }
-    Centroid *res1, *res2, *find;
-    find = Centroid_create(x, 0);
-    res1 = RB_NFIND(CentroidTree, &(digest->C), find);
-    double res_mean;
-    
-    if (res1 == NULL) {
+    double upper_mean;
+    Centroid *upper_c, *res, *find, *c = NULL;
+    find = Centroid_create(x, 1);
+
+    // Find the first centroid with mean greater than or equal to x.
+    upper_c = RB_NFIND(CentroidTree, &(digest->C), find);
+    free(find);
+
+    // Find the last centroid with mean greater than or equal to x.
+    if (upper_c != NULL) {
+        upper_mean = upper_c->mean;
+        for (res = RB_NEXT(CentroidTree, &(digest->C), upper_c);
+             res != NULL;
+             res = RB_NEXT(CentroidTree, &(digest->C), res)) {
+            if (res->mean > upper_mean)
+                break;
+            upper_c = res;
+        }
+    } else {
         // No centroid with mean greater than or equal to x was found which
         // means all centroids have mean smaller than x.
-        res1 = RB_MAX(CentroidTree, &(digest->C));
-        res_mean = res1->mean;
-        if (res1 == NULL) {
-            return 0;
-        }
-        LIST_INSERT_HEAD(closests, res1, lentry);
-        nclose++;
-        for (res2 = RB_PREV(CentroidTree, &(digest->C), res1); res2 != NULL; res2 = RB_PREV(CentroidTree, &(digest->C), res2)) {
-            if (res2->mean != res_mean)
-                break;
-            LIST_INSERT_HEAD(closests, res2, lentry);
-            nclose++;
-        }
-        return nclose;
+        upper_c = RB_MAX(CentroidTree, &(digest->C));
     }
 
-    // A closest centroid was found. Search for nearby centroids at the same
-    // distance.
-    res_mean = res1->mean;
-    double z = fabs(x - res_mean);
-    LIST_INSERT_HEAD(closests, res1, lentry);
-    nclose++;
-    for (res2 = RB_PREV(CentroidTree, &(digest->C), res1); res2 != NULL; res2 = RB_PREV(CentroidTree, &(digest->C), res2)) {
-        if (fabs(fabs(x - res2->mean) - z) > 1e-9)
-            break;
-        LIST_INSERT_HEAD(closests, res2, lentry);
-        nclose++;
-    }
-    for (res2 = RB_NEXT(CentroidTree, &(digest->C), res1); res2 != NULL; res2 = RB_NEXT(CentroidTree, &(digest->C), res2)) {
-        if (fabs(fabs(x - res2->mean) - z) > 1e-9)
-            break;
-        LIST_INSERT_HEAD(closests, res2, lentry);
-        nclose++;
-    }
+    double n = 0;
+    double qc, threshold;
     
-    return nclose;
+    if (upper_c == NULL) {
+        return NULL;
+    }
+    upper_mean = upper_c->mean;
+    for (res = upper_c; res != NULL; res = RB_PREV(CentroidTree, &(digest->C), res)) {
+        qc = Centroid_quantile(res, digest);
+        threshold = 4 * digest->count * digest->delta * qc * (1 - qc);
+        if (res->mean < upper_mean)
+            break;
+        if (res->count + w <= threshold) {
+            n++;
+            if (rand() / (double)RAND_MAX < 1 / n) {
+                c = res;
+            }
+        }
+    }
+    return c;
 }
 
-void TDigest_compress(TDigest *digest)
+void TDigest_compress(TDigest **digest)
 {
-    static int comp_count = 0;
-    printf("compression #%d\n", comp_count);
-    TDigest *new_digest = TDigest_create();
+    TDigest *digestp = *digest;
+    TDigest *new_digest = TDigest_create(digestp->delta, digestp->K);
     Centroid *c;
-    size_t n = 1;
+    int i, j;
 
-    while (!RB_EMPTY(&(digest->C))) {
-        int i, j = arc4random_uniform(digest->ncentroids);
-        c = RB_MIN(CentroidTree, &(digest->C));
+    size_t ncold, ncnew;
+    ncold = digestp->ncentroids;
+
+    while (!RB_EMPTY(&(digestp->C))) {
+        j = arc4random_uniform(digestp->ncentroids);
+        c = RB_MIN(CentroidTree, &(digestp->C));
         for (i = 0; i < j; i++) {
-            c = RB_NEXT(CentroidTree, &(digest->C), c);
+            c = RB_NEXT(CentroidTree, &(digestp->C), c);
         }
-        RB_REMOVE(CentroidTree, &(digest->C), c);
-        digest->count -= c->count;
-        digest->ncentroids -= 1;
-        TDigest_add(new_digest, c->mean, c->count, n);
-        n++;
+        RB_REMOVE(CentroidTree, &(digestp->C), c);
+        digestp->count -= c->count;
+        digestp->ncentroids -= 1;
+        TDigest_add(&new_digest, c->mean, c->count);
         free(c);
     }
 
-    digest = new_digest;
-    comp_count++;
+    ncnew = new_digest->ncentroids;
+    printf("Compression: %.4lf%%\n", (ncold - ncnew) / (double)ncold * 100.0);
+
+    TDigest_destroy(digestp);
+    *digest = new_digest;
 }
 
 double TDigest_percentile(TDigest *digest, double q)
