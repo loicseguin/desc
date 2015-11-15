@@ -234,7 +234,7 @@ char *test_small_streaming()
                         };
 
     dataset *ds = read_data_file("data/small.dat", true);
-    test_dataset(EPSILON);
+    test_dataset(7);
 }
 
 char *test_empty()
