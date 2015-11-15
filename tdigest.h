@@ -24,11 +24,12 @@ void TDigest_compress(TDigest **digest);
 double TDigest_percentile(TDigest *digest, double q);
 size_t TDigest_get_ncentroids(TDigest *digest);
 Centroid *TDigest_get_centroid(TDigest *digest, size_t i);
+size_t TDigest_get_ncompressions(TDigest *digest);
+size_t TDigest_get_count(TDigest *digest);
 
 Centroid* Centroid_create(double x, size_t w);
 void Centroid_add(Centroid *c, double x, size_t w);
 double Centroid_get_mean(Centroid *c);
-double Centroid_get_count(Centroid *c);
-double Centroid_quantile(Centroid *c, TDigest *digest);
+size_t Centroid_get_count(Centroid *c);
 
 #endif

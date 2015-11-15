@@ -7,6 +7,7 @@
  * Davidson-Pilon: https://github.com/CamDavidsonPilon/tdigest.
  */
 
+#include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@ struct TDigest {
     size_t ncentroids;
     double delta;
     unsigned int K;
+    size_t ncompressions;
 };
 
 RB_GENERATE(CentroidTree, Centroid, entry, centroidcmp)
@@ -42,6 +44,7 @@ TDigest* TDigest_create(double delta, unsigned int K)
     digest->K = K;
     digest->count = 0;
     digest->ncentroids = 0;
+    digest->ncompressions = 0;
     return digest;
 }
 
@@ -64,7 +67,9 @@ void TDigest_add(TDigest **digest, double x, size_t w)
 
     if (cj != NULL) {
         // Add the data point to the selected centroid.
+        RB_REMOVE(CentroidTree, &((*digest)->C), cj);
         Centroid_add(cj, x, w);
+        RB_INSERT(CentroidTree, &((*digest)->C), cj);
     } else {
         Centroid *c = Centroid_create(x, w);
         RB_INSERT(CentroidTree, &((*digest)->C), c);
@@ -85,50 +90,48 @@ Centroid *TDigest_find_closest_centroid(TDigest *digest, double x, size_t w)
     if (digest->ncentroids == 0) {
         return NULL;
     }
-    double upper_mean;
-    Centroid *upper_c, *res, *find, *c = NULL;
-    find = Centroid_create(x, 1);
-
-    // Find the first centroid with mean greater than or equal to x.
-    upper_c = RB_NFIND(CentroidTree, &(digest->C), find);
-    free(find);
-
-    // Find the last centroid with mean greater than or equal to x.
-    if (upper_c != NULL) {
-        upper_mean = upper_c->mean;
-        for (res = RB_NEXT(CentroidTree, &(digest->C), upper_c);
-             res != NULL;
-             res = RB_NEXT(CentroidTree, &(digest->C), res)) {
-            if (res->mean > upper_mean)
-                break;
-            upper_c = res;
-        }
-    } else {
-        // No centroid with mean greater than or equal to x was found which
-        // means all centroids have mean smaller than x.
-        upper_c = RB_MAX(CentroidTree, &(digest->C));
-    }
-
-    double n = 0;
-    double qc, threshold;
     
-    if (upper_c == NULL) {
-        return NULL;
-    }
-    upper_mean = upper_c->mean;
-    for (res = upper_c; res != NULL; res = RB_PREV(CentroidTree, &(digest->C), res)) {
-        qc = Centroid_quantile(res, digest);
-        threshold = 4 * digest->count * digest->delta * qc * (1 - qc);
-        if (res->mean < upper_mean)
+    double z, min_distance = DBL_MAX;
+    double sum = 0.0;
+    Centroid *c, *lower_closest, *upper_closest = NULL;
+    lower_closest = RB_MIN(CentroidTree, &(digest->C));
+
+    // Start at the beginning of the tree keep going as long as the distance to
+    // x decreases.
+    for (c = lower_closest; c != NULL; c = RB_NEXT(CentroidTree, &(digest->C), c)) {
+        // Sum the counts of centroids with mean smaller than x. This is used
+        // to compute the quantile.
+        if (c->mean < x) {
+            sum += c->count;
+        }
+        z = fabs(c->mean - x);
+        if (z < min_distance) {
+            min_distance = z;
+            lower_closest = c;
+        } else if (z > min_distance) {
+            upper_closest = c;
             break;
-        if (res->count + w <= threshold) {
+        }
+    }
+
+    // Start at the lower_closest and choose one of the closer centroids at
+    // random.
+    double qc, threshold;
+    double n = 0.0;
+    Centroid *closest = NULL;
+
+    for (c = lower_closest; c != upper_closest; c = RB_NEXT(CentroidTree, &(digest->C), c)) {
+        qc = (c->count / 2.0 + sum) / digest->count;
+        threshold = 4 * digest->count * digest->delta * qc * (1 - qc);
+        if (c->count + w <= threshold) {
             n++;
-            if (rand() / (double)RAND_MAX < 1 / n) {
-                c = res;
+            if (rand() / (double)RAND_MAX < 1.0 / n) {
+                closest = c;
             }
         }
     }
-    return c;
+
+    return closest;
 }
 
 void TDigest_compress(TDigest **digest)
@@ -137,9 +140,6 @@ void TDigest_compress(TDigest **digest)
     TDigest *new_digest = TDigest_create(digestp->delta, digestp->K);
     Centroid *c;
     int i, j;
-
-    size_t ncold, ncnew;
-    ncold = digestp->ncentroids;
 
     while (!RB_EMPTY(&(digestp->C))) {
         j = arc4random_uniform(digestp->ncentroids);
@@ -154,11 +154,15 @@ void TDigest_compress(TDigest **digest)
         free(c);
     }
 
-    ncnew = new_digest->ncentroids;
-    printf("Compression: %.4lf%%\n", (ncold - ncnew) / (double)ncold * 100.0);
-
+    new_digest->ncompressions = digestp->ncompressions;
     TDigest_destroy(digestp);
     *digest = new_digest;
+    ((*digest)->ncompressions)++;
+}
+
+size_t TDigest_get_ncompressions(TDigest *digest)
+{
+    return digest->ncompressions;
 }
 
 double TDigest_percentile(TDigest *digest, double q)
@@ -201,6 +205,11 @@ Centroid *TDigest_get_centroid(TDigest *digest, size_t i)
     return c;
 }
 
+size_t TDigest_get_count(TDigest *digest)
+{
+    return digest->count;
+}
+
 Centroid* Centroid_create(double x, size_t w)
 {
     Centroid *centroid = malloc(sizeof(Centroid));
@@ -230,7 +239,7 @@ double Centroid_get_mean(Centroid *c)
     return c->mean;
 }
 
-double Centroid_get_count(Centroid *c)
+size_t Centroid_get_count(Centroid *c)
 {
     return c->count;
 }
