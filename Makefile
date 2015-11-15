@@ -30,7 +30,7 @@ tests: $(TESTEXEC)
 	./$(TESTEXEC)
 
 clean:
-	rm -rf *.o $(TESTSEXEC) $(TARGET) $(TIMINGSEXEC)
+	rm -rf *.o $(TESTEXEC) $(TARGET) $(TIMINGSEXEC)
 	rm -rf *.dSYM
 	rm -rf *.plist
 
