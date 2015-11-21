@@ -116,14 +116,13 @@ datasets that can't fit into memory.
     Using this mode, the throughput is roughly 3 MB/s (slightly faster for data 
     sets with less than a couple of gigabytes). The caveat is that the 
     percentiles (first quartile, median, third quartile) are approximated using 
-    a t-digest[^1]. The relative error is on the order of 0.5%.
+    a t-digest [[1][dunning]]. The relative error is on the order of 0.5%.
     
     Due to the overhead of maintaining the data structure, this mode is much 
     slower than the normal mode and should only be used when data does not fit 
     into memory.
 
-[^1]: Dunning, T., Ertl, O. *Computing Extremely Accurate Quantiles Using t-Digests*. Paper and code available at 
-[https://github.com/tdunning/t-digest](https://github.com/tdunning/t-digest).
+[dunning]: https://github.com/tdunning/t-digest "Dunning, T., Ertl, O. *Computing Extremely Accurate Quantiles Using t-Digests*"
 
 ## Benchmark
 
