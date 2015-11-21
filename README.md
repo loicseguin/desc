@@ -86,25 +86,24 @@ The above command runs in less than 1.5 second on a 2011 Macbook Pro.
 To run **desc** in *streaming* mode, just add the command line option `-s`.
 With this option turned on, the dataset is not stored into memory. Summary
 statistics are computed in one pass on the data. This options allows to work
-with very large datasets. Moreover, running time scales linearly with the size
-of the input. The caveat is that the percentiles (first quartile, median, third
-quartile) are approximated by sampling the data. The following is an example
-using a 2.3 GB dataset.
+with very large datasets. The following is an example using a 2.3 GB dataset.
 
     $ time ./desc -s data/very_large.dat
     count     100000000
     min       2.2054e-06
-    Q1        24.418
-    mean      49.998
-    median    48.516
-    Q3        73.812
+    Q1        24.991
+    median    50.124
+    Q3        74.939
     max       100
-    IQR       49.395
+    IQR       49.948
+    mean      49.998
     var       833.34
     sd        28.868
-    ./desc -s data/very_large.dat  28,48s user 1,03s system 99% cpu 29,614 total
+    ./desc -s data/very_large.dat  616,20s user 4,54s system 99% cpu 10:24,51 total
 
-The whole process takes less than 55 KB of memory.
+The whole process takes less than 600 KB of memory. This is obviously much 
+slower than not using streaming mode, but it has the advantage of working on 
+datasets that can't fit into memory.
 
 ## Features/Limitations
 
@@ -113,6 +112,18 @@ The whole process takes less than 55 KB of memory.
     rest of the line is ignored.
   - Get help: `-h` to print a short help message.
   - Run in streaming mode with command line option `-s`
+
+    Using this mode, the throughput is roughly 3 MB/s (slightly faster for data 
+    sets with less than a couple of gigabytes). The caveat is that the 
+    percentiles (first quartile, median, third quartile) are approximated using 
+    a t-digest[^1]. The relative error is on the order of 0.5%.
+    
+    Due to the overhead of maintaining the data structure, this mode is much 
+    slower than the normal mode and should only be used when data does not fit 
+    into memory.
+
+[^1]: Dunning, T., Ertl, O. *Computing Extremely Accurate Quantiles Using t-Digests*. Paper and code available at 
+[https://github.com/tdunning/t-digest](https://github.com/tdunning/t-digest).
 
 ## Benchmark
 
