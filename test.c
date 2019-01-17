@@ -294,6 +294,18 @@ char *test_tdigest_add()
     return NULL;
 }
 
+char *test_tdigest_repeated()
+{
+    // From issue #2, t-digest fails on repeated values.
+    int i, nx = 10000;
+    TDigest *t = TDigest_create(0.01, 25);
+    for (i = 0; i < nx; i++)
+        TDigest_add(&t, 0, 1);
+
+    mu_assert(TDigest_percentile(t, 0.99) == 0, "Incorrect 99th percentile");
+    return NULL;
+}
+
 char *test_nofile()
 {
     dataset *ds = read_data_file("imnotthere.dat", false);
@@ -322,6 +334,7 @@ char *all_tests()
     mu_run_test(test_centroid);
     mu_run_test(test_create_destroy_tdigest);
     mu_run_test(test_tdigest_add);
+    /*mu_run_test(test_tdigest_repeated);*/
 
     return NULL;
 }
