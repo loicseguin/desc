@@ -1,6 +1,10 @@
 CFLAGS=-O2 -Wall -Wextra -DNDEBUG $(OPTFLAGS)
-LDFLAGS=-lm -lbsd
 PREFIX?=/usr/local
+ifeq ($(shell uname -s), Linux)
+	LDFLAGS=-lm -lbsd
+else
+	LDFLAGS=-lm
+endif
 
 SOURCES=$(wildcard *.c)
 
