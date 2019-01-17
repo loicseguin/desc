@@ -14,6 +14,10 @@
 #include "tdigest.h"
 #include "tree.h"
 
+#ifdef __linux__
+#include <bsd/stdlib.h>
+#endif
+
 struct Centroid {
     RB_ENTRY(Centroid) entry;
     double mean;
