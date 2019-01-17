@@ -334,7 +334,7 @@ char *all_tests()
     mu_run_test(test_centroid);
     mu_run_test(test_create_destroy_tdigest);
     mu_run_test(test_tdigest_add);
-    /*mu_run_test(test_tdigest_repeated);*/
+    mu_run_test(test_tdigest_repeated);
 
     return NULL;
 }

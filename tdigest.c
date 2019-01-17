@@ -36,6 +36,7 @@ struct TDigest {
     double delta;
     unsigned int K;
     size_t ncompressions;
+    double last_added_value;
 };
 
 RB_GENERATE(CentroidTree, Centroid, entry, centroidcmp)
@@ -49,6 +50,7 @@ TDigest* TDigest_create(double delta, unsigned int K)
     digest->count = 0;
     digest->ncentroids = 0;
     digest->ncompressions = 0;
+    digest->last_added_value = DBL_MAX;
     return digest;
 }
 
@@ -81,6 +83,7 @@ void TDigest_add(TDigest **digest, double x, size_t w)
     }
 
     (*digest)->count += w;
+    (*digest)->last_added_value = x;
 
     if ((*digest)->ncentroids > (*digest)->K / (*digest)->delta) {
         TDigest_compress(digest);
@@ -127,7 +130,7 @@ Centroid *TDigest_find_closest_centroid(TDigest *digest, double x, size_t w)
     for (c = lower_closest; c != upper_closest; c = RB_NEXT(CentroidTree, &(digest->C), c)) {
         qc = (c->count / 2.0 + sum) / digest->count;
         threshold = 4 * digest->count * digest->delta * qc * (1 - qc);
-        if (c->count + w <= threshold) {
+        if ((c->count + w <= threshold) || (digest->last_added_value == x)) {
             n++;
             if (rand() / (double)RAND_MAX < 1.0 / n) {
                 closest = c;
@@ -173,12 +176,16 @@ double TDigest_percentile(TDigest *digest, double q)
 {
     double delta, t = 0;
     bool first = true;
-    Centroid *c;
+    Centroid *c, *next_centroid;
     q *= digest->count;
     RB_FOREACH(c, CentroidTree, &(digest->C)) {
         if (q < t + c->count) {
             if (first) {
-                delta = RB_NEXT(CentroidTree, &(digest->C), c)->mean - c->mean;
+                next_centroid = RB_NEXT(CentroidTree, &(digest->C), c);
+                if (next_centroid != NULL)
+                    delta = RB_NEXT(CentroidTree, &(digest->C), c)->mean - c->mean;
+                else
+                    delta = 0;
             } else if (c == RB_MAX(CentroidTree, &(digest->C))) {
                 delta = c->mean - RB_PREV(CentroidTree, &(digest->C), c)->mean;
             } else {
